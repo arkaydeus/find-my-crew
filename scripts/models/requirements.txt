@@ -1,0 +1,16 @@
+# Python 3.12 tooling for FindMyCrew Core ML model conversion.
+# Verified together on macOS 27 / Apple Silicon (2026-10-11).
+# torch is pinned to 2.7.0: the newest release coremltools 9.0 is tested against
+# (newer torch versions print an "untested" warning and may break conversion).
+coremltools==9.0
+torch==2.7.0
+torchvision==0.22.0      # required by onnx2torch; must match torch 2.7.0
+onnx==1.23.2
+onnx2torch==1.5.15
+onnxruntime==1.31.0
+numpy==2.5.4
+pillow==12.3.0
+protobuf==7.36.2
+# Optional but recommended: lets convert_sface.py verify Core ML against the real
+# cv2.FaceRecognizerSF.feature() reference implementation.
+opencv-python-headless==5.0.0.93

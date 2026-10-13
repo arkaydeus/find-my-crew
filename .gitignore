@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# Xcode / build output
+# (FindMyCrew.xcodeproj itself is committed; only per-user state is ignored)
+build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+.swiftpm/
+
+# Downloaded models, eval data (LFW) and smoke-test artifacts — all regenerable
+models-cache/
+
+# Python (model conversion scripts)
+.venv-models/
+__pycache__/
+*.py[cod]
+
+# Orkestrator workspace metadata
+.orkestrator/

@@ -1,0 +1,105 @@
+import CoreGraphics
+import Foundation
+import Vision
+
+/// A face found by Vision, in pixel coordinates of the analysed image (top-left origin).
+struct RawFace: Sendable {
+    var boundingBox: CGRect
+    /// ArcFace order: image-left eye, image-right eye, nose tip, left mouth corner, right mouth corner
+    /// (left/right as seen in an upright face). `nil` when Vision found no landmarks.
+    var landmarks5: [CGPoint]?
+    var quality: Float?
+    var yaw: Double
+    var roll: Double
+    var pitch: Double
+    var confidence: Float
+}
+
+/// Face detection, landmarks and capture quality using Apple Vision (runs on the Neural Engine).
+struct FaceDetector: Sendable {
+    func detect(in image: CGImage) async throws -> [RawFace] {
+        let size = CGSize(width: image.width, height: image.height)
+
+        var rectangles = DetectFaceRectanglesRequest()
+        var landmarks = DetectFaceLandmarksRequest()
+        if #available(macOS 27.0, *) {
+            rectangles = DetectFaceRectanglesRequest(.revision4)
+            landmarks = DetectFaceLandmarksRequest(.revision4)
+        }
+        let faces = try await rectangles.perform(on: image)
+        guard !faces.isEmpty else { return [] }
+
+        landmarks.inputFaceObservations = faces
+        var quality = DetectFaceCaptureQualityRequest()
+        quality.inputFaceObservations = faces
+        async let landmarked = landmarks.perform(on: image)
+        async let scored = quality.perform(on: image)
+        let withLandmarks = (try? await landmarked) ?? []
+        let withQuality = (try? await scored) ?? []
+
+        return faces.map { face in
+            let box = face.boundingBox.toImageCoordinates(size, origin: .upperLeft)
+            let lm = Self.closest(to: face, in: withLandmarks)?.landmarks
+            let q = Self.closest(to: face, in: withQuality)?.captureQuality?.score
+            return RawFace(
+                boundingBox: box,
+                landmarks5: lm.flatMap { Self.fivePoints(from: $0, imageSize: size) },
+                quality: q,
+                yaw: face.yaw.converted(to: .degrees).value,
+                roll: face.roll.converted(to: .degrees).value,
+                pitch: face.pitch.converted(to: .degrees).value,
+                confidence: face.confidence
+            )
+        }
+    }
+
+    /// Follow-up requests may return observations in a different order; match by UUID, then by box overlap.
+    private static func closest(to face: FaceObservation, in candidates: [FaceObservation]) -> FaceObservation? {
+        if let same = candidates.first(where: { $0.uuid == face.uuid }) { return same }
+        let a = face.boundingBox.cgRect
+        return candidates
+            .map { ($0, iou(a, $0.boundingBox.cgRect)) }
+            .filter { $0.1 > 0.5 }
+            .max { $0.1 < $1.1 }?.0
+    }
+
+    static func iou(_ a: CGRect, _ b: CGRect) -> CGFloat {
+        let i = a.intersection(b)
+        guard !i.isNull else { return 0 }
+        let inter = i.width * i.height
+        let union = a.width * a.height + b.width * b.height - inter
+        return union > 0 ? inter / union : 0
+    }
+
+    /// Reduces Vision's dense landmarks to the 5 ArcFace alignment points.
+    ///
+    /// Left/right are resolved geometrically (relative to the face's own up direction) rather than
+    /// from Vision's naming, so the result is correct for any roll angle.
+    static func fivePoints(from lm: FaceObservation.Landmarks2D, imageSize: CGSize) -> [CGPoint]? {
+        func points(_ region: FaceObservation.Landmarks2D.Region) -> [CGPoint] {
+            region.pointsInImageCoordinates(imageSize, origin: .upperLeft)
+        }
+        func centroid(_ p: [CGPoint]) -> CGPoint? {
+            guard !p.isEmpty else { return nil }
+            let s = p.reduce(CGPoint.zero) { CGPoint(x: $0.x + $1.x, y: $0.y + $1.y) }
+            return CGPoint(x: s.x / CGFloat(p.count), y: s.y / CGFloat(p.count))
+        }
+
+        let lips = points(lm.outerLips)
+        guard let eyeA = centroid(points(lm.leftPupil)) ?? centroid(points(lm.leftEye)),
+              let eyeB = centroid(points(lm.rightPupil)) ?? centroid(points(lm.rightEye)),
+              let nose = centroid(points(lm.nose)) ?? points(lm.noseCrest).last,
+              let mouth = centroid(lips), lips.count >= 2
+        else { return nil }
+
+        let eyeMid = CGPoint(x: (eyeA.x + eyeB.x) / 2, y: (eyeA.y + eyeB.y) / 2)
+        // Face "up" (mouth → eyes), then rotate to get the image-left direction of an upright face.
+        let up = CGPoint(x: eyeMid.x - mouth.x, y: eyeMid.y - mouth.y)
+        let left = CGPoint(x: up.y, y: -up.x)
+        func leftness(_ p: CGPoint) -> CGFloat { (p.x - eyeMid.x) * left.x + (p.y - eyeMid.y) * left.y }
+
+        let (leftEye, rightEye) = leftness(eyeA) >= leftness(eyeB) ? (eyeA, eyeB) : (eyeB, eyeA)
+        let sortedLips = lips.sorted { leftness($0) > leftness($1) }
+        return [leftEye, rightEye, nose, sortedLips.first!, sortedLips.last!]
+    }
+}

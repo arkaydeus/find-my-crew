@@ -1,0 +1,655 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		097033B1936A02830E344EC6 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95919A5C08B8B8EBE894A005 /* AppModel.swift */; };
+		0B9E349B9F8881EDFC34E0C1 /* Export.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79C0E32E4E6C4857F7337B19 /* Export.swift */; };
+		0FA512A56CE3C65D6AE85F2B /* FaceEmbedder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 727CE4B75AE77D0BE22B0FF5 /* FaceEmbedder.swift */; };
+		1ED2847F6EFE2476AF2B7104 /* ExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC29B3A1CD7FDF59A07C4C0C /* ExportView.swift */; };
+		214E244AFFEC667E0D20BEF8 /* ScanEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71DAC94C4A8F98A8AB8DB0D2 /* ScanEngine.swift */; };
+		29643A46BD6C7490F6620104 /* SourceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C74E6C604089236F66F3A06 /* SourceView.swift */; };
+		3BC19644F16957C713689F03 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A7CA2820F0822EFF092199 /* AppSettings.swift */; };
+		3C96CEF04328E3127CDC876E /* ImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD8A2C9C64AC6C1AFE4160CC /* ImageLoader.swift */; };
+		3F13A3274173E814E8C77EB7 /* FaceDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B4B288159FD967C30BB5381 /* FaceDetector.swift */; };
+		4350A28887C052FE20123A47 /* FindMyCrewApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 768DC071F766FF76E1BB2AED /* FindMyCrewApp.swift */; };
+		4355B7245F656AEA36FB5E02 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 352AB68F948649F054C8B895 /* Assets.xcassets */; };
+		43FFF81CF86194C3BCCA2F93 /* ReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57A2871153677839107AEABF /* ReviewView.swift */; };
+		531ECCCC15B4D9440EB2B087 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 976C8F11014EA41A08D86369 /* ContentView.swift */; };
+		53F6A6B68C160DFF1690C7D4 /* FaceDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B4B288159FD967C30BB5381 /* FaceDetector.swift */; };
+		5FD0D1A98148711438C47BE3 /* SFace.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 7339DE7C42CB0734D6CE2743 /* SFace.mlpackage */; };
+		6D5F12FAF55925CA0B758EB3 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE64043B1113B1016EE6A3D6 /* main.swift */; };
+		7129B42C664A1D7A1DAB5608 /* ModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DAFFBE58951747372D5D8F8 /* ModelStore.swift */; };
+		751A9B36F21EF1705348AC65 /* FacePipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A16F25C91C09DD41836D658 /* FacePipeline.swift */; };
+		7662D4E05D7BD3B966C7723D /* FacePipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A16F25C91C09DD41836D658 /* FacePipeline.swift */; };
+		766859E83B590A6FEC7854B9 /* FolderEnumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22F1A3C380D5257F57E76D13 /* FolderEnumerator.swift */; };
+		81E2A4A081A3E1048B724207 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 143963A7EB086F7E71E99230 /* Components.swift */; };
+		8352DA3AC4776E3EB5412532 /* ModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DAFFBE58951747372D5D8F8 /* ModelStore.swift */; };
+		8DDE365462A656D73FCB8E43 /* Export.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79C0E32E4E6C4857F7337B19 /* Export.swift */; };
+		98C045E6D9B015789C284BDF /* ScanEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71DAC94C4A8F98A8AB8DB0D2 /* ScanEngine.swift */; };
+		A96BC1F67373B73D5CBF9F4E /* Vector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF31479FFBBACDC9E5F69C4 /* Vector.swift */; };
+		AC97F27A8EE26DA0375C82F8 /* ScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE91DC1F243C17D07D3A0564 /* ScanView.swift */; };
+		C7A588EF2BDF574E5302D8CE /* FaceAligner.swift in Sources */ = {isa = PBXBuildFile; fileRef = D077803FA4F157CE57666B3E /* FaceAligner.swift */; };
+		CDB483D26EC04B46186A1DFF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A45D04CE2851A3631324B46D /* SettingsView.swift */; };
+		DF6E39FA0E4D69167BE94DAC /* ReferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC2FB48DB76E39DC8E88DECE /* ReferencesView.swift */; };
+		E0072776580E6EB92B6360C9 /* ImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD8A2C9C64AC6C1AFE4160CC /* ImageLoader.swift */; };
+		E2DE56AC84E5A86DAB32E7CC /* FolderEnumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22F1A3C380D5257F57E76D13 /* FolderEnumerator.swift */; };
+		F6662CA785E1AE41655EFD69 /* Vector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF31479FFBBACDC9E5F69C4 /* Vector.swift */; };
+		FB960B1A31585971AB72517A /* FaceAligner.swift in Sources */ = {isa = PBXBuildFile; fileRef = D077803FA4F157CE57666B3E /* FaceAligner.swift */; };
+		FE7452BF20AF1EB9AD3B6510 /* FaceEmbedder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 727CE4B75AE77D0BE22B0FF5 /* FaceEmbedder.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		62C1DBEF4DAF8C20004BE0B6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8147EDFE24EAFD6268C9CEE4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F3443646A8B6037A825E0F59;
+			remoteInfo = FindMyCrew;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0DAFFBE58951747372D5D8F8 /* ModelStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelStore.swift; sourceTree = "<group>"; };
+		143963A7EB086F7E71E99230 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		22F1A3C380D5257F57E76D13 /* FolderEnumerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderEnumerator.swift; sourceTree = "<group>"; };
+		2B4B288159FD967C30BB5381 /* FaceDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceDetector.swift; sourceTree = "<group>"; };
+		352AB68F948649F054C8B895 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		38A7CA2820F0822EFF092199 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		4A5D9B827A84BF068864E84D /* FindMyCrew.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FindMyCrew.entitlements; sourceTree = "<group>"; };
+		57A2871153677839107AEABF /* ReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewView.swift; sourceTree = "<group>"; };
+		5AF31479FFBBACDC9E5F69C4 /* Vector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Vector.swift; sourceTree = "<group>"; };
+		5DDE53BDBF42D8B9B5912124 /* FindMyCrew.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FindMyCrew.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6A16F25C91C09DD41836D658 /* FacePipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FacePipeline.swift; sourceTree = "<group>"; };
+		71DAC94C4A8F98A8AB8DB0D2 /* ScanEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanEngine.swift; sourceTree = "<group>"; };
+		727CE4B75AE77D0BE22B0FF5 /* FaceEmbedder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceEmbedder.swift; sourceTree = "<group>"; };
+		7339DE7C42CB0734D6CE2743 /* SFace.mlpackage */ = {isa = PBXFileReference; path = SFace.mlpackage; sourceTree = "<group>"; };
+		768DC071F766FF76E1BB2AED /* FindMyCrewApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindMyCrewApp.swift; sourceTree = "<group>"; };
+		79C0E32E4E6C4857F7337B19 /* Export.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Export.swift; sourceTree = "<group>"; };
+		7C74E6C604089236F66F3A06 /* SourceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceView.swift; sourceTree = "<group>"; };
+		95919A5C08B8B8EBE894A005 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		976C8F11014EA41A08D86369 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A45D04CE2851A3631324B46D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		CC29B3A1CD7FDF59A07C4C0C /* ExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportView.swift; sourceTree = "<group>"; };
+		CE64043B1113B1016EE6A3D6 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		D077803FA4F157CE57666B3E /* FaceAligner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceAligner.swift; sourceTree = "<group>"; };
+		DD8A2C9C64AC6C1AFE4160CC /* ImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageLoader.swift; sourceTree = "<group>"; };
+		EE91DC1F243C17D07D3A0564 /* ScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanView.swift; sourceTree = "<group>"; };
+		F71124FFF5DE632E71360A35 /* fmc-eval */ = {isa = PBXFileReference; includeInIndex = 0; path = "fmc-eval"; sourceTree = BUILT_PRODUCTS_DIR; };
+		FC2FB48DB76E39DC8E88DECE /* ReferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferencesView.swift; sourceTree = "<group>"; };
+		FFF4FEF567FC154E0CEBE091 /* FindMyCrewTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FindMyCrewTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		05DE23B516053FFF50D21ADC /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5DDE53BDBF42D8B9B5912124 /* FindMyCrew.app */,
+				FFF4FEF567FC154E0CEBE091 /* FindMyCrewTests.xctest */,
+				F71124FFF5DE632E71360A35 /* fmc-eval */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		34D74F2A4B66C40FC4E177E0 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				143963A7EB086F7E71E99230 /* Components.swift */,
+				976C8F11014EA41A08D86369 /* ContentView.swift */,
+				CC29B3A1CD7FDF59A07C4C0C /* ExportView.swift */,
+				FC2FB48DB76E39DC8E88DECE /* ReferencesView.swift */,
+				57A2871153677839107AEABF /* ReviewView.swift */,
+				EE91DC1F243C17D07D3A0564 /* ScanView.swift */,
+				A45D04CE2851A3631324B46D /* SettingsView.swift */,
+				7C74E6C604089236F66F3A06 /* SourceView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		4FABA7D4B98E6C187AF256D8 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				7339DE7C42CB0734D6CE2743 /* SFace.mlpackage */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		5A000CA41ED35424D46F4AF6 /* FindMyCrew */ = {
+			isa = PBXGroup;
+			children = (
+				4A5D9B827A84BF068864E84D /* FindMyCrew.entitlements */,
+				B92BD6CEA90CF6CDDE8535E8 /* App */,
+				B8FBD9A009458239C60F54D8 /* Core */,
+				8EE99A7F015EC3CC4D41DE7B /* Resources */,
+				34D74F2A4B66C40FC4E177E0 /* Views */,
+			);
+			path = FindMyCrew;
+			sourceTree = "<group>";
+		};
+		84DCD32D32D6613A2D415B2B /* FindMyCrewEval */ = {
+			isa = PBXGroup;
+			children = (
+				CE64043B1113B1016EE6A3D6 /* main.swift */,
+			);
+			path = FindMyCrewEval;
+			sourceTree = "<group>";
+		};
+		8EE99A7F015EC3CC4D41DE7B /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				352AB68F948649F054C8B895 /* Assets.xcassets */,
+				4FABA7D4B98E6C187AF256D8 /* Models */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		9EC8D41246E8617EEB84015A = {
+			isa = PBXGroup;
+			children = (
+				5A000CA41ED35424D46F4AF6 /* FindMyCrew */,
+				84DCD32D32D6613A2D415B2B /* FindMyCrewEval */,
+				E92DFE3BFBD4845FFB9F5507 /* FindMyCrewTests */,
+				05DE23B516053FFF50D21ADC /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B8FBD9A009458239C60F54D8 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				79C0E32E4E6C4857F7337B19 /* Export.swift */,
+				D077803FA4F157CE57666B3E /* FaceAligner.swift */,
+				2B4B288159FD967C30BB5381 /* FaceDetector.swift */,
+				727CE4B75AE77D0BE22B0FF5 /* FaceEmbedder.swift */,
+				6A16F25C91C09DD41836D658 /* FacePipeline.swift */,
+				22F1A3C380D5257F57E76D13 /* FolderEnumerator.swift */,
+				DD8A2C9C64AC6C1AFE4160CC /* ImageLoader.swift */,
+				0DAFFBE58951747372D5D8F8 /* ModelStore.swift */,
+				71DAC94C4A8F98A8AB8DB0D2 /* ScanEngine.swift */,
+				5AF31479FFBBACDC9E5F69C4 /* Vector.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		B92BD6CEA90CF6CDDE8535E8 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				95919A5C08B8B8EBE894A005 /* AppModel.swift */,
+				38A7CA2820F0822EFF092199 /* AppSettings.swift */,
+				768DC071F766FF76E1BB2AED /* FindMyCrewApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		E92DFE3BFBD4845FFB9F5507 /* FindMyCrewTests */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = FindMyCrewTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		157C907CE2F6D234B8CE6442 /* FindMyCrewTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 430684B699299598916ED2F0 /* Build configuration list for PBXNativeTarget "FindMyCrewTests" */;
+			buildPhases = (
+				FEF97D219F6A67E76CD3E002 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				52A66BD914FA8D364EC62FE7 /* PBXTargetDependency */,
+			);
+			name = FindMyCrewTests;
+			packageProductDependencies = (
+			);
+			productName = FindMyCrewTests;
+			productReference = FFF4FEF567FC154E0CEBE091 /* FindMyCrewTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		7B2AE2453C01D36D29B575A2 /* fmc-eval */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 245CEB0256B64541E8A6DD5E /* Build configuration list for PBXNativeTarget "fmc-eval" */;
+			buildPhases = (
+				75287F850474A0F214C6F582 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "fmc-eval";
+			packageProductDependencies = (
+			);
+			productName = "fmc-eval";
+			productReference = F71124FFF5DE632E71360A35 /* fmc-eval */;
+			productType = "com.apple.product-type.tool";
+		};
+		F3443646A8B6037A825E0F59 /* FindMyCrew */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7088639E72E63499C629D963 /* Build configuration list for PBXNativeTarget "FindMyCrew" */;
+			buildPhases = (
+				6496BA97938B17FFD2627514 /* Sources */,
+				ACF24DEEDF52F8AF6D6BED12 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FindMyCrew;
+			packageProductDependencies = (
+			);
+			productName = FindMyCrew;
+			productReference = 5DDE53BDBF42D8B9B5912124 /* FindMyCrew.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		8147EDFE24EAFD6268C9CEE4 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					157C907CE2F6D234B8CE6442 = {
+						ProvisioningStyle = Manual;
+					};
+					7B2AE2453C01D36D29B575A2 = {
+						ProvisioningStyle = Manual;
+					};
+					F3443646A8B6037A825E0F59 = {
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = E41FB6ABD65C97C4D065DB46 /* Build configuration list for PBXProject "FindMyCrew" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 9EC8D41246E8617EEB84015A;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 05DE23B516053FFF50D21ADC /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F3443646A8B6037A825E0F59 /* FindMyCrew */,
+				157C907CE2F6D234B8CE6442 /* FindMyCrewTests */,
+				7B2AE2453C01D36D29B575A2 /* fmc-eval */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		ACF24DEEDF52F8AF6D6BED12 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4355B7245F656AEA36FB5E02 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		6496BA97938B17FFD2627514 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				097033B1936A02830E344EC6 /* AppModel.swift in Sources */,
+				3BC19644F16957C713689F03 /* AppSettings.swift in Sources */,
+				81E2A4A081A3E1048B724207 /* Components.swift in Sources */,
+				531ECCCC15B4D9440EB2B087 /* ContentView.swift in Sources */,
+				8DDE365462A656D73FCB8E43 /* Export.swift in Sources */,
+				1ED2847F6EFE2476AF2B7104 /* ExportView.swift in Sources */,
+				FB960B1A31585971AB72517A /* FaceAligner.swift in Sources */,
+				53F6A6B68C160DFF1690C7D4 /* FaceDetector.swift in Sources */,
+				FE7452BF20AF1EB9AD3B6510 /* FaceEmbedder.swift in Sources */,
+				7662D4E05D7BD3B966C7723D /* FacePipeline.swift in Sources */,
+				4350A28887C052FE20123A47 /* FindMyCrewApp.swift in Sources */,
+				766859E83B590A6FEC7854B9 /* FolderEnumerator.swift in Sources */,
+				3C96CEF04328E3127CDC876E /* ImageLoader.swift in Sources */,
+				7129B42C664A1D7A1DAB5608 /* ModelStore.swift in Sources */,
+				DF6E39FA0E4D69167BE94DAC /* ReferencesView.swift in Sources */,
+				43FFF81CF86194C3BCCA2F93 /* ReviewView.swift in Sources */,
+				5FD0D1A98148711438C47BE3 /* SFace.mlpackage in Sources */,
+				214E244AFFEC667E0D20BEF8 /* ScanEngine.swift in Sources */,
+				AC97F27A8EE26DA0375C82F8 /* ScanView.swift in Sources */,
+				CDB483D26EC04B46186A1DFF /* SettingsView.swift in Sources */,
+				29643A46BD6C7490F6620104 /* SourceView.swift in Sources */,
+				A96BC1F67373B73D5CBF9F4E /* Vector.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		75287F850474A0F214C6F582 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0B9E349B9F8881EDFC34E0C1 /* Export.swift in Sources */,
+				C7A588EF2BDF574E5302D8CE /* FaceAligner.swift in Sources */,
+				3F13A3274173E814E8C77EB7 /* FaceDetector.swift in Sources */,
+				0FA512A56CE3C65D6AE85F2B /* FaceEmbedder.swift in Sources */,
+				751A9B36F21EF1705348AC65 /* FacePipeline.swift in Sources */,
+				E2DE56AC84E5A86DAB32E7CC /* FolderEnumerator.swift in Sources */,
+				E0072776580E6EB92B6360C9 /* ImageLoader.swift in Sources */,
+				8352DA3AC4776E3EB5412532 /* ModelStore.swift in Sources */,
+				98C045E6D9B015789C284BDF /* ScanEngine.swift in Sources */,
+				F6662CA785E1AE41655EFD69 /* Vector.swift in Sources */,
+				6D5F12FAF55925CA0B758EB3 /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FEF97D219F6A67E76CD3E002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		52A66BD914FA8D364EC62FE7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F3443646A8B6037A825E0F59 /* FindMyCrew */;
+			targetProxy = 62C1DBEF4DAF8C20004BE0B6 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0CF7A3EE8E2BB37FF47EB0C0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		146C0A1DD9FA85861683DD51 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.findmycrew.eval;
+				PRODUCT_NAME = "fmc-eval";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		38AC9FB2DBBF06B6FD8ABC36 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = FindMyCrew/FindMyCrew.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				COREML_CODEGEN_LANGUAGE = None;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Find My Crew";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Find My Crew. Face recognition model: SFace (OpenCV Zoo, Apache-2.0).";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.findmycrew.app;
+				PRODUCT_MODULE_NAME = FindMyCrew;
+				PRODUCT_NAME = "Find My Crew";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		4DB20228023DED30D06E3B10 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		53DE52651E27E59FEC3D7D38 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.findmycrew.eval;
+				PRODUCT_NAME = "fmc-eval";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		D24D53EDDBFF232BA40B11B9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				FMC_REPO_ROOT = "$(SRCROOT)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.findmycrew.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Find My Crew.app/Contents/MacOS/Find My Crew";
+			};
+			name = Release;
+		};
+		DC9E0E22575A79BDA0CC4A0B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				FMC_REPO_ROOT = "$(SRCROOT)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.findmycrew.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Find My Crew.app/Contents/MacOS/Find My Crew";
+			};
+			name = Debug;
+		};
+		F4F6A40E3140141128A4D207 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = FindMyCrew/FindMyCrew.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				COREML_CODEGEN_LANGUAGE = None;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Find My Crew";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Find My Crew. Face recognition model: SFace (OpenCV Zoo, Apache-2.0).";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.findmycrew.app;
+				PRODUCT_MODULE_NAME = FindMyCrew;
+				PRODUCT_NAME = "Find My Crew";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		245CEB0256B64541E8A6DD5E /* Build configuration list for PBXNativeTarget "fmc-eval" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				53DE52651E27E59FEC3D7D38 /* Debug */,
+				146C0A1DD9FA85861683DD51 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		430684B699299598916ED2F0 /* Build configuration list for PBXNativeTarget "FindMyCrewTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DC9E0E22575A79BDA0CC4A0B /* Debug */,
+				D24D53EDDBFF232BA40B11B9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7088639E72E63499C629D963 /* Build configuration list for PBXNativeTarget "FindMyCrew" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				38AC9FB2DBBF06B6FD8ABC36 /* Debug */,
+				F4F6A40E3140141128A4D207 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E41FB6ABD65C97C4D065DB46 /* Build configuration list for PBXProject "FindMyCrew" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4DB20228023DED30D06E3B10 /* Debug */,
+				0CF7A3EE8E2BB37FF47EB0C0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 8147EDFE24EAFD6268C9CEE4 /* Project object */;
+}

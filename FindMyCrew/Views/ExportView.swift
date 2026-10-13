@@ -74,16 +74,19 @@ struct ExportView: View {
             }
 
             if let summary = model.exportSummary {
-                Section("Done") {
-                    if summary.copied == 0 && summary.failures.isEmpty && summary.skippedIdentical > 0 {
-                        Label("Nothing new to copy — all \(summary.skippedIdentical) files are already at the destination.",
-                              systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
-                    } else {
-                        Label("\(summary.copied) files copied (\(summary.bytesCopied.byteString))", systemImage: "checkmark.circle.fill")
-                            .foregroundStyle(.green)
+                Section(summary.completionTitle) {
+                    if summary.cancelled {
+                        Text("Copy stopped before all files were processed. You can copy again to continue.")
                     }
-                    if summary.skippedIdentical > 0 && summary.copied > 0 {
+                    if !summary.cancelled && summary.copied == 0 && summary.failures.isEmpty && summary.skippedIdentical > 0 {
+                        Label("Nothing new to copy — all \(summary.skippedIdentical) files are already at the destination.",
+                              systemImage: summary.cancelled ? "stop.circle" : "checkmark.circle.fill")
+                            .foregroundStyle(summary.cancelled ? .orange : .green)
+                    } else {
+                        Label("\(summary.copied) files copied (\(summary.bytesCopied.byteString))", systemImage: summary.cancelled ? "stop.circle" : "checkmark.circle.fill")
+                            .foregroundStyle(summary.cancelled ? .orange : .green)
+                    }
+                    if summary.skippedIdentical > 0 && (summary.copied > 0 || summary.cancelled) {
                         Text("\(summary.skippedIdentical) already existed at the destination and were skipped.")
                     }
                     if summary.renamed > 0 {

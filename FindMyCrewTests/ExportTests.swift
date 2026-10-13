@@ -154,6 +154,23 @@ struct ExportServiceTests {
         #expect(counter.last == (2, 2))
     }
 
+    @Test func cancelledExportReportsOnlyCompletedCopies() async throws {
+        let source = try TempDir(), dest = try TempDir()
+        let ops = try (0..<4).map { index in
+            CopyOperation(from: try source.file("\(index).jpg"), to: dest.url.appending(path: "\(index).jpg"), bytes: 1, isSidecar: false)
+        }
+        let worker = Task {
+            await ExportService.execute(ops) { done, _ in
+                if done == 1 { withUnsafeCurrentTask { $0?.cancel() } }
+            }
+        }
+        let summary = await worker.value
+        #expect(summary.cancelled && summary.copied == 1)
+        #expect(summary.outputs.count == 1 && summary.failures.isEmpty)
+        #expect(summary.completionTitle == "Copy stopped")
+        #expect(try FileManager.default.contentsOfDirectory(atPath: dest.url.path).count == 1)
+    }
+
     @Test func uniqueURLHandlesFilesWithoutExtension() throws {
         let dir = try TempDir()
         let f = try dir.file("README")

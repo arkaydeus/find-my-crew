@@ -22,18 +22,22 @@ struct Matcher: Sendable, Equatable {
     /// references). Raising the default by 0.019 per e-fold beyond 3 references holds it near 1 %; fitted and
     /// cross-validated on the test libraries built by scripts/eval/build_scenario.py.
     static func defaultThreshold(model: Float, referenceCount: Int) -> Float {
-        model + 0.019 * log(Float(max(referenceCount, 3)) / 3)
+        min(1, max(-1, model + 0.019 * log(Float(max(referenceCount, 3)) / 3)))
     }
 
-    /// Slider range around a model's calibrated default threshold.
+    /// Keep the usual 0.05…0.95 slider limits, expanding to include custom defaults anywhere
+    /// in the cosine domain. Clamp before constructing a range so its bounds remain ordered.
     static func thresholdRange(default d: Float) -> ClosedRange<Float> {
-        max(0.05, d - 0.15)...min(0.95, d + 0.25)
+        let center = min(1, max(-1, d))
+        let lower = max(center < 0.05 ? -1 : 0.05, center - 0.15)
+        let upper = min(center > 0.95 ? 1 : 0.95, center + 0.25)
+        return lower...upper
     }
 
-    func isMatch(_ r: PhotoResult) -> Bool { r.bestScore >= threshold }
+    func isMatch(_ r: PhotoResult) -> Bool { r.error == nil && !r.faces.isEmpty && r.bestScore >= threshold }
 
     func isNearMiss(_ r: PhotoResult) -> Bool {
-        r.bestScore < threshold && r.bestScore >= threshold - Self.nearMissMargin
+        r.error == nil && !r.faces.isEmpty && r.bestScore < threshold && r.bestScore >= threshold - Self.nearMissMargin
     }
 
     func isIncluded(_ r: PhotoResult) -> Bool {
@@ -59,6 +63,14 @@ struct Matcher: Sendable, Equatable {
             if isIncluded(r) { selected += 1 }
         }
         return (matches, nearMisses, selected)
+    }
+
+    /// Manually included photos stay visible even outside the near-miss band or with it collapsed.
+    func reviewGroups(_ results: [PhotoResult]) -> (matches: [PhotoResult], manual: [PhotoResult], nearMisses: [PhotoResult]) {
+        let p = partition(results)
+        return (p.matches,
+                results.filter { !isMatch($0) && forceIncluded.contains($0.id) },
+                p.nearMisses.filter { !forceIncluded.contains($0.id) })
     }
 
     func selected(_ results: [PhotoResult]) -> [PhotoResult] { results.filter(isIncluded) }

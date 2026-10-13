@@ -23,11 +23,15 @@ struct ReferenceSet: Sendable {
     let dimension: Int
     /// Row-major R×D copy of `embeddings`, built once so each face is scored with one matrix-vector product.
     private let matrix: [Float]
+    /// Compact scoring rows retain their indices in the caller's parallel face/person/file arrays.
+    private let originalIndices: [Int]
 
     init(embeddings: [[Float]]) {
         let unit = embeddings.map(Vector.normalized)
         let d = unit.first?.count ?? 0
-        let rows = unit.filter { $0.count == d }
+        let indices = unit.indices.filter { d > 0 && unit[$0].count == d }
+        let rows = indices.map { unit[$0] }
+        originalIndices = indices
         dimension = d
         self.embeddings = rows
         matrix = rows.flatMap { $0 }
@@ -44,11 +48,11 @@ struct ReferenceSet: Sendable {
         return out
     }
 
-    /// Highest cosine similarity of `embedding` to any reference, and which reference (−1, −1 if none).
+    /// Highest cosine similarity of `embedding` to any reference, and its original reference index (−1, −1 if none).
     func bestMatch(for embedding: [Float]) -> (score: Float, index: Int) {
         let s = scores(for: embedding)
         guard !s.isEmpty else { return (-1, -1) }
         let (index, value) = vDSP.indexOfMaximum(s)
-        return (value, Int(index))
+        return (min(1, max(-1, value)), originalIndices[Int(index)])
     }
 }

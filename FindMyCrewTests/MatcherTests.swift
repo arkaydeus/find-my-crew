@@ -17,6 +17,14 @@ struct ReferenceSetTests {
         #expect(ReferenceSet(embeddings: [[1, 0, 0]]).bestMatch(for: [1, 0]) == (-1, -1))
     }
 
+    @Test func mixedDimensionsPreserveOriginalReferenceIndex() {
+        let refs = ReferenceSet(embeddings: [[1, 0], [0, 0, 1], [0, 1]])
+        #expect(refs.count == 2)
+        #expect(refs.bestMatch(for: [0, 1]) == (1, 2))
+        #expect(refs.bestMatch(for: [1, 0]) == (1, 0))
+        #expect(ReferenceSet(embeddings: [[]]).isEmpty)
+    }
+
     @Test func vectorHelpers() {
         let v = Vector.normalized([3, 4])
         #expect(abs(v[0] - 0.6) < 1e-6 && abs(v[1] - 0.8) < 1e-6)
@@ -97,6 +105,44 @@ struct MatcherTests {
         #expect(abs(range.lowerBound - 0.21) < 1e-6 && abs(range.upperBound - 0.61) < 1e-6)
         #expect(Matcher.thresholdRange(default: 0.1).lowerBound == 0.05)
         #expect(Matcher.thresholdRange(default: 0.8).upperBound == 0.95)
+    }
+
+    @Test func scoreLimitDefaultsAlwaysFitAnOrderedSliderRange() {
+        for model: Float in [-1, -0.5, -0.21, 0, 0.98, 1] {
+            for count in [0, 1, 9, 1_000_000, Int.max] {
+                let threshold = Matcher.defaultThreshold(model: model, referenceCount: count)
+                let range = Matcher.thresholdRange(default: threshold)
+                #expect((-1...1).contains(threshold))
+                #expect(range.lowerBound <= range.upperBound)
+                #expect(range.lowerBound >= -1 && range.upperBound <= 1)
+                #expect(range.contains(threshold))
+            }
+        }
+        let high = Matcher.defaultThreshold(model: 0.98, referenceCount: 9)
+        #expect(high == 1)
+        #expect(Matcher(threshold: high).isMatch(makeResult("perfect", scores: [1])))
+        #expect(!Matcher(threshold: -1).isMatch(makeResult("blank", scores: [])))
+        #expect(!Matcher(threshold: -1).isMatch(makeResult("broken", scores: [], error: "decode")))
+    }
+
+    @Test func manuallyIncludedPhotosStayVisibleAndCanBeUnticked() {
+        var matcher = Matcher(threshold: 0.36)
+        let rescued = results[3]
+        matcher.setIncluded(true, for: rescued)
+        matcher.threshold = 0.8
+        let groups = matcher.reviewGroups(results)
+        #expect(groups.manual.map(\.id) == [rescued.id])
+        #expect(!groups.nearMisses.contains { $0.id == rescued.id })
+        #expect(matcher.isIncluded(rescued))
+        matcher.setIncluded(false, for: rescued)
+        #expect(matcher.reviewGroups(results).manual.isEmpty)
+        #expect(!matcher.isIncluded(rescued))
+        matcher.threshold = 0.36
+        matcher.setIncluded(true, for: rescued)
+        #expect(!matcher.reviewGroups(results).nearMisses.contains { $0.id == rescued.id })
+        matcher.threshold = 0.3
+        #expect(matcher.reviewGroups(results).manual.isEmpty)
+        #expect(matcher.reviewGroups(results).matches.contains { $0.id == rescued.id })
     }
 
     /// FR-5.2: re-filtering 10k+ results must take < 100 ms.

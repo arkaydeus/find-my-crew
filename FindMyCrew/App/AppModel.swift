@@ -43,6 +43,7 @@ struct ReferencePhoto: Identifiable {
     enum State { case loading, done, failed(String) }
     let id = UUID()
     var url: URL
+    var access: SecurityScopedAccess?
     var state: State = .loading
     var faces: [ReferenceFace] = []
 }
@@ -68,6 +69,7 @@ final class AppModel {
 
     // ③ Source
     private(set) var sourceRoot: URL?
+    private var sourceAccess: SecurityScopedAccess?
     private(set) var enumeration: EnumerationResult?
     private(set) var enumeratingCount: Int?
     private(set) var enumerationError: String?
@@ -86,20 +88,38 @@ final class AppModel {
     /// Reference faces used for the current results; editing them makes results stale.
     private(set) var scannedReferenceIDs: Set<UUID> = []
     private var scanTask: Task<Void, Never>?
-    private let pauseGate = PauseGate()
+    private var scanControl = ScanControl()
+    var hasPendingScanWork: Bool { scanTask != nil }
+    private var pauseGate = PauseGate()
 
     // ⑤ Review
     var matcher = Matcher(threshold: 0.36)
 
     // ⑥ Export
-    var destination: URL?
+    var destination: URL? {
+        didSet { destinationAccess = destination.map { SecurityScopedAccess($0) } }
+    }
+    private var destinationAccess: SecurityScopedAccess?
     var includeSidecars = true
     private(set) var exportProgress: (done: Int, total: Int)?
     private(set) var exportSummary: ExportSummary?
     private(set) var exportError: String?
     private var exportTask: Task<Void, Never>?
 
-    init() {
+    typealias ScanRunner = @Sendable ([ScanItem], ReferenceSet, FacePipeline, PauseGate, ScanControl) -> AsyncStream<PhotoResult>
+    typealias ExportRunner = @Sendable ([CopyOperation], @Sendable (Int, Int) -> Void) async -> ExportSummary
+    private let scanRunner: ScanRunner
+    private let exportRunner: ExportRunner
+    private let scanFlushInterval: TimeInterval
+
+    init(scanFlushInterval: TimeInterval = 0.1,
+         scanRunner: @escaping ScanRunner = { items, refs, pipeline, gate, control in
+             ScanEngine.run(items: items, references: refs, pipeline: pipeline, gate: gate, control: control)
+         },
+         exportRunner: @escaping ExportRunner = { ops, progress in await ExportService.execute(ops, progress: progress) }) {
+        self.scanFlushInterval = scanFlushInterval
+        self.scanRunner = scanRunner
+        self.exportRunner = exportRunner
         Task { await reloadModel() }
     }
 
@@ -189,20 +209,23 @@ final class AppModel {
         var seen = Set<URL>()
         let new = urls.filter { ImageLoader.isSupported($0) && !existing.contains($0) && seen.insert($0).inserted }
         guard !new.isEmpty else { return }
+        let accesses = new.map { SecurityScopedAccess($0) }
         guard let pipeline else {
             if embedder == nil {
                 Task {
+                    defer { withExtendedLifetime(accesses) {} }
                     await reloadModel()
                     if self.embedder != nil { addReferencePhotos(new, adjust: adjust) }
                 }
             }
             return
         }
-        for url in new {
-            let photo = ReferencePhoto(url: url)
+        for (url, access) in zip(new, accesses) {
+            let photo = ReferencePhoto(url: url, access: access)
             referencePhotos.append(photo)
             let id = photo.id
             Task.detached(priority: .userInitiated) {
+                defer { withExtendedLifetime(access) {} }
                 let outcome: Result<[ReferenceFace], Error>
                 do {
                     let (image, faces) = try await pipeline.process(url: url)
@@ -257,14 +280,17 @@ final class AppModel {
 
     func chooseSource(_ url: URL) {
         enumerationTask?.cancel()
-        if url != sourceRoot { resetScan() }
+        if url != sourceRoot { cancelScan(); resetScan() }
+        let access = SecurityScopedAccess(url)
+        sourceAccess = access
         sourceRoot = url
         enumeration = nil
         enumerationError = nil
         enumeratingCount = 0
         enumerationTask = Task {
             let worker = Task.detached(priority: .userInitiated) { () -> Result<EnumerationResult, Error> in
-                Result {
+                defer { withExtendedLifetime(access) {} }
+                return Result {
                     try FolderEnumerator.enumerate(root: url) { count in
                         Task { @MainActor in
                             if self.enumeratingCount != nil { self.enumeratingCount = count }
@@ -305,21 +331,26 @@ final class AppModel {
         activeSince = Date()
         step = .scan
 
+        scanControl = ScanControl()
+        pauseGate = PauseGate()
+        let control = scanControl
         let gate = pauseGate
         let generation = scanGeneration
+        let access = sourceAccess
         scanTask = Task {
+            defer { withExtendedLifetime(access) {} }
             await gate.setPaused(false)
             var buffer: [PhotoResult] = []
             var lastFlush = Date()
-            for await result in ScanEngine.run(items: items, references: references, pipeline: pipeline, gate: gate) {
+            for await result in scanRunner(items, references, pipeline, gate, control) {
                 buffer.append(result)
-                if Date().timeIntervalSince(lastFlush) > 0.1 {
+                if Date().timeIntervalSince(lastFlush) > scanFlushInterval {
                     flush(&buffer, generation: generation)
                     lastFlush = Date()
                 }
             }
             flush(&buffer, generation: generation)
-            finishScan(cancelled: Task.isCancelled, generation: generation)
+            finishScan(cancelled: scanStatus == .cancelled || Task.isCancelled, generation: generation)
         }
     }
 
@@ -342,11 +373,12 @@ final class AppModel {
     }
 
     private func finishScan(cancelled: Bool, generation: UUID) {
-        guard generation == scanGeneration, scanStatus == .running || scanStatus == .paused else { return }
+        guard generation == scanGeneration else { return }
+        scanTask = nil
+        guard scanStatus == .running || scanStatus == .paused else { return }
         updateElapsed()
         activeSince = nil
         sortResults()
-        scanTask = nil
         scanStatus = cancelled ? .cancelled : .finished
         if !cancelled, step == .scan { step = .review }
     }
@@ -367,13 +399,11 @@ final class AppModel {
     }
 
     func cancelScan() {
-        guard let scanTask else { return }
-        let gate = pauseGate
-        Task { await gate.setPaused(false) }
-        scanTask.cancel()
-        self.scanTask = nil
+        guard scanTask != nil else { return }
+        scanControl.cancel()
         if scanStatus == .running || scanStatus == .paused {
             updateElapsed()
+            elapsedBeforePause = scanElapsed
             activeSince = nil
             sortResults()
             scanStatus = .cancelled
@@ -428,13 +458,16 @@ final class AppModel {
     var isExporting: Bool { exportTask != nil }
 
     func startExport() {
-        guard case .success(let ops)? = plannedOperations() else { return }
+        guard !isExporting, case .success(let ops)? = plannedOperations() else { return }
         exportSummary = nil
         exportError = nil
         exportProgress = (0, ops.count)
+        let exportRunner = exportRunner
+        let accesses = [sourceAccess, destinationAccess]
         exportTask = Task {
+            defer { withExtendedLifetime(accesses) {} }
             let worker = Task.detached(priority: .userInitiated) {
-                await ExportService.execute(ops) { done, total in
+                await exportRunner(ops) { done, total in
                     Task { @MainActor in self.exportProgress = (done, total) }
                 }
             }

@@ -18,11 +18,11 @@ struct AppModelTests {
         }
     }
 
-    private func makeModel() async throws -> AppModel {
+    private func makeModel(_ supplied: AppModel? = nil) async throws -> AppModel {
         UserDefaults.standard.removeObject(forKey: "customModelName")
         UserDefaults.standard.removeObject(forKey: "flipAugmentation")
         UserDefaults.standard.removeObject(forKey: "workingResolution")
-        let model = AppModel()
+        let model = supplied ?? AppModel()
         try await waitUntil("model load") { model.embedder != nil || model.modelError != nil }
         try #require(model.embedder != nil, "\(model.modelError ?? "")")
         return model
@@ -196,6 +196,77 @@ struct AppModelTests {
         try await waitUntil("finish") { model.scanStatus == .finished }
         #expect(model.processedCount == 120)
         #expect(model.selectedResults.count == 120)
+    }
+
+    @Test(arguments: [false, true])
+    func stopWithBufferedResultsPreservesElapsedAndSpeed(_ pauseAndResume: Bool) async throws {
+        let completed = ResultLog()
+        let model = try await makeModel(AppModel(scanFlushInterval: 60, scanRunner: { items, _, _, gate, control in
+            ScanEngine.stream(items: items, concurrency: 2, gate: gate, control: control) { item in
+                if item.url == items.first?.url {
+                    completed.record(item.url)
+                    return PhotoResult(item: item, faces: [FaceHit(box: .zero, score: 0.8, referenceIndex: 0)])
+                }
+                do { try await Task.sleep(for: .seconds(60)) } catch { return nil }
+                return nil
+            }
+        }))
+        try await addReferences(model, ["harris_2021.jpg"])
+        let dir = try TempDir()
+        try dir.file("a.jpg"); try dir.file("b.jpg"); try dir.file("c.jpg")
+        model.chooseSource(dir.url)
+        try await waitUntil("enumeration") { model.enumeration != nil }
+        model.startScan()
+        try await waitUntil("buffered result") { completed.count == 1 }
+        #expect(model.processedCount == 0)
+        if pauseAndResume {
+            model.togglePause()
+            let paused = model.scanElapsed
+            try await Task.sleep(for: .milliseconds(50))
+            model.togglePause()
+            #expect(model.scanElapsed == paused)
+        }
+        try await Task.sleep(for: .milliseconds(50))
+        model.cancelScan()
+        let stopped = model.scanElapsed
+        #expect(stopped > 0)
+        try await waitUntil("cancelled scan drain") { !model.hasPendingScanWork }
+        #expect(model.processedCount == 1)
+        #expect(model.scanElapsed == stopped)
+        let speed = model.photosPerSecond
+        #expect(speed == 1 / stopped)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(model.scanElapsed == stopped && model.photosPerSecond == speed)
+        #expect(model.scanStatus == .cancelled)
+    }
+
+    @Test func cancelledPartialExportReportsStoppedCopy() async throws {
+        let copied = ResultLog()
+        let model = try await makeModel(AppModel(exportRunner: { ops, progress in
+            var partial = await ExportService.execute(Array(ops.prefix(1)), progress: progress)
+            copied.record(ops[0].from)
+            do { try await Task.sleep(for: .seconds(60)) } catch { }
+            let tail = await ExportService.execute(Array(ops.dropFirst()), progress: progress)
+            partial.cancelled = tail.cancelled
+            return partial
+        }))
+        try await addReferences(model, ["harris_2021.jpg"])
+        let dir = try TempDir(), destination = try TempDir()
+        try dir.linkedCopies(of: Fixtures.url("harris_2021.jpg"), count: 3)
+        model.chooseSource(dir.url)
+        try await waitUntil("enumeration") { model.enumeration != nil }
+        model.startScan()
+        try await waitUntil("scan") { model.scanStatus == .finished }
+        model.destination = destination.url
+        model.startExport()
+        try await waitUntil("first copy") { copied.count == 1 }
+        model.cancelExport()
+        try await waitUntil("stopped export") { !model.isExporting }
+        let summary = try #require(model.exportSummary)
+        #expect(summary.cancelled && summary.copied == 1)
+        #expect(summary.completionTitle == "Copy stopped")
+        #expect(summary.outputs.count == 1)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: destination.url.path).count == 1)
     }
 
     @Test func brokenCustomModelFallsBackToBuiltIn() async throws {

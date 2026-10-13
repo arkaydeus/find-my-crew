@@ -224,6 +224,29 @@ struct ScanEngineTests {
         #expect(processed < items.count)
     }
 
+    @Test func stoppingDrainsEveryCompletedInFlightResult() async throws {
+        let gate = PauseGate()
+        await gate.setPaused(true)
+        let control = ScanControl()
+        let completed = ResultLog(), yielded = ResultLog()
+        let items = (0..<20).map { ScanItem(url: URL(filePath: "/\($0).jpg"), relativePath: "\($0).jpg", fileSize: 1) }
+        let stream = ScanEngine.stream(items: items, concurrency: 4, gate: gate, control: control) { item in
+            completed.record(item.url)
+            return PhotoResult(item: item, faces: [])
+        }
+        let consumer = Task { for await result in stream { yielded.record(result.id) } }
+        let deadline = ContinuousClock.now + .seconds(5)
+        while completed.count < 4 || yielded.count < 1 {
+            try #require(ContinuousClock.now < deadline)
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(yielded.count == 1)
+        control.cancel() // Also wakes a paused producer; consumer remains alive to receive the drain.
+        await consumer.value
+        #expect(yielded.paths == completed.paths)
+        #expect(yielded.count == 4)
+    }
+
     @Test func pauseHoldsTheScanUntilResumed() async throws {
         let dir = try TempDir()
         try dir.linkedCopies(of: Fixtures.url("harris_2021.jpg"), count: 40)

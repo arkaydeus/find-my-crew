@@ -43,8 +43,26 @@ actor PauseGate {
     }
 
     func waitIfPaused() async {
-        guard paused else { return }
+        guard paused, !Task.isCancelled else { return }
         await withCheckedContinuation { waiters.append($0) }
+    }
+}
+
+/// Stop the producer without cancelling the consumer, so completed results can still be drained.
+final class ScanControl: @unchecked Sendable {
+    private let lock = NSLock()
+    private var task: Task<Void, Never>?
+    private var cancelled = false
+
+    func install(_ task: Task<Void, Never>) {
+        lock.withLock {
+            self.task = task
+            if cancelled { task.cancel() }
+        }
+    }
+
+    func cancel() {
+        lock.withLock { cancelled = true; task?.cancel() }
     }
 }
 
@@ -56,28 +74,58 @@ enum ScanEngine {
         references: ReferenceSet,
         pipeline: FacePipeline,
         concurrency: Int = ProcessInfo.processInfo.activeProcessorCount,
-        gate: PauseGate = PauseGate()
+        gate: PauseGate = PauseGate(),
+        control: ScanControl = ScanControl()
+    ) -> AsyncStream<PhotoResult> {
+        stream(items: items, concurrency: concurrency, gate: gate, control: control) { item in
+            await process(item, references: references, pipeline: pipeline)
+        }
+    }
+
+    /// Separate worker entry point allows deterministic cancellation coverage without model timing.
+    static func stream(
+        items: [ScanItem], concurrency: Int, gate: PauseGate = PauseGate(), control: ScanControl,
+        process: @escaping @Sendable (ScanItem) async -> PhotoResult?
     ) -> AsyncStream<PhotoResult> {
         AsyncStream(bufferingPolicy: .unbounded) { continuation in
             let task = Task.detached(priority: .userInitiated) {
-                await withTaskGroup(of: PhotoResult?.self) { group in
-                    var iterator = items.makeIterator()
-                    for _ in 0..<max(1, concurrency) {
-                        guard let item = iterator.next() else { break }
-                        group.addTask { await process(item, references: references, pipeline: pipeline) }
-                    }
-                    while let result = await group.next() {
-                        if let result { continuation.yield(result) }
-                        await gate.waitIfPaused()
-                        if Task.isCancelled { group.cancelAll(); break }
-                        if let item = iterator.next() {
-                            group.addTask { await process(item, references: references, pipeline: pipeline) }
-                        }
-                    }
+                await produce(items: items, concurrency: concurrency, gate: gate, process: process) {
+                    continuation.yield($0)
                 }
                 continuation.finish()
             }
+            control.install(task)
             continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    static func produce(
+        items: [ScanItem], concurrency: Int, gate: PauseGate,
+        process: @escaping @Sendable (ScanItem) async -> PhotoResult?,
+        yield: @escaping @Sendable (PhotoResult) -> Void
+    ) async {
+        await withTaskCancellationHandler {
+            await withTaskGroup(of: PhotoResult?.self) { group in
+                var iterator = items.makeIterator()
+                for _ in 0..<max(1, concurrency) {
+                    guard !Task.isCancelled, let item = iterator.next() else { break }
+                    group.addTask { await process(item) }
+                }
+                while let result = await group.next() {
+                    if let result { yield(result) }
+                    if !Task.isCancelled { await gate.waitIfPaused() }
+                    if Task.isCancelled {
+                        group.cancelAll()
+                        // Keep draining: children that already completed still have valid results.
+                        continue
+                    }
+                    if let item = iterator.next() {
+                        group.addTask { await process(item) }
+                    }
+                }
+            }
+        } onCancel: {
+            Task { await gate.setPaused(false) }
         }
     }
 

@@ -110,3 +110,12 @@ enum Memory {
         return kr == KERN_SUCCESS ? Int(info.phys_footprint) : 0
     }
 }
+
+/// Records asynchronous worker completions without races.
+final class ResultLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var urls: [URL] = []
+    func record(_ url: URL) { lock.withLock { urls.append(url) } }
+    var count: Int { lock.withLock { urls.count } }
+    var paths: Set<URL> { lock.withLock { Set(urls) } }
+}

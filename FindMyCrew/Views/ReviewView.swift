@@ -13,13 +13,14 @@ struct ReviewView: View {
     private let columns = [GridItem(.adaptive(minimum: 170, maximum: 240), spacing: 12)]
 
     var body: some View {
-        let (matches, nearMisses, selectedCount) = model.matcher.partition(model.results)
-        let visible = matches + (showNearMisses ? nearMisses : [])
+        let (matches, manual, nearMisses) = model.matcher.reviewGroups(model.results)
+        let selectedCount = model.selectedResults.count
+        let visible = matches + manual + (showNearMisses ? nearMisses : [])
 
         VStack(spacing: 0) {
             controls(matches: matches, selectedCount: selectedCount)
             Divider()
-            if matches.isEmpty && nearMisses.isEmpty {
+            if matches.isEmpty && manual.isEmpty && nearMisses.isEmpty {
                 Placeholder(title: "No matches", systemImage: "person.fill.questionmark",
                             message: "Try lowering the match threshold, or add more reference photos.")
             } else {
@@ -28,6 +29,12 @@ struct ReviewView: View {
                         VStack(alignment: .leading, spacing: 16) {
                             LazyVGrid(columns: columns, spacing: 12) {
                                 ForEach(matches) { tile($0) }
+                            }
+                            if !manual.isEmpty {
+                                Text("Manually included (\(manual.count))").font(.headline)
+                                LazyVGrid(columns: columns, spacing: 12) {
+                                    ForEach(manual) { tile($0) }
+                                }
                             }
                             if !nearMisses.isEmpty {
                                 DisclosureGroup(isExpanded: $showNearMisses) {

@@ -38,7 +38,7 @@ fetch-eval:
 # End-to-end test library from openly licensed photos (Wikimedia Commons + raw.pixls.us); ~2 GB, ~30 min.
 testset:
 	scripts/models/setup_venv.sh
-	python3 scripts/eval/fetch_testset.py
+	.venv-models/bin/python scripts/eval/fetch_testset.py
 	.venv-models/bin/python scripts/eval/build_scenario.py
 
 # Scan → review → export on the test library, scored against its labels (run `make testset` first).

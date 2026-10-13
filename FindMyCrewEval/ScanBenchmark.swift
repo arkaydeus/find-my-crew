@@ -1,5 +1,4 @@
 import CoreGraphics
-import CryptoKit
 import Foundation
 import ImageIO
 
@@ -113,6 +112,11 @@ enum ScanBenchmark {
             labels[f[0]] = f.count > 1 ? f[1] : ""
         }
 
+        let expectationsURL = o.labels.deletingLastPathComponent().appending(path: "expectations.json")
+        let expectations = FileManager.default.fileExists(atPath: expectationsURL.path)
+            ? try JSONDecoder().decode(ScenarioValidation.Expectations.self, from: Data(contentsOf: expectationsURL))
+            : ScenarioValidation.Expectations()
+
         // ③ Enumerate.
         var t0 = Date()
         let enumeration = try FolderEnumerator.enumerate(root: o.source)
@@ -148,37 +152,33 @@ enum ScanBenchmark {
         print("Skipped (unreadable): \(failed.count)")
         for r in failed { print("  \(r.item.relativePath): \(r.error ?? "")") }
 
+        let scanProblems = ScenarioValidation.scanProblems(items: items, results: results, labels: labels,
+                                                            expectations: expectations)
+        if !scanProblems.isEmpty { print("SCAN PROBLEMS:\n  " + scanProblems.joined(separator: "\n  ")) }
+        ok = ok && scanProblems.isEmpty
+
         // ⑤ Review: accuracy at the default threshold and a sweep.
         func person(_ r: PhotoResult, at t: Float) -> Set<String> {
             Set(r.faces.filter { $0.score >= t && $0.referenceIndex >= 0 }.map { refPerson[$0.referenceIndex] })
         }
         func truth(_ r: PhotoResult) -> String { labels[r.item.relativePath] ?? "" }
-        /// Labels starting with "#" (corrupt, truncated…) are excluded from accuracy figures.
-        let scored = results.filter { $0.error == nil && !truth($0).hasPrefix("#") }
+        // Only explicitly expected corrupt/truncated labels are excluded; unexpected errors remain misses.
+        let scored = results.filter { !ScenarioValidation.excludedFromAccuracy(truth($0)) }
 
         print(String(format: "\nAccuracy at threshold %.3f (app default for %d references %.3f; model %.3f)",
                      threshold, refEmbeddings.count, appDefault, embedder.defaultThreshold))
         print("  person              photos  found  missed  false+  precision  recall")
         for name in targets.sorted() {
-            let positives = scored.filter { truth($0) == name }
-            let predicted = scored.filter { person($0, at: threshold).contains(name) }
+            let positiveCount = labels.values.filter { $0 == name }.count
+            let predicted = scored.filter { $0.error == nil && person($0, at: threshold).contains(name) }
             let tp = predicted.filter { truth($0) == name }.count
-            print(String(format: "  %-18@ %6d %6d %7d %7d %9.1f%% %6.1f%%", name as NSString, positives.count, tp,
-                         positives.count - tp, predicted.count - tp,
+            print(String(format: "  %-18@ %6d %6d %7d %7d %9.1f%% %6.1f%%", name as NSString, positiveCount, tp,
+                         positiveCount - tp, predicted.count - tp,
                          predicted.isEmpty ? 100 : 100 * Double(tp) / Double(predicted.count),
-                         positives.isEmpty ? 100 : 100 * Double(tp) / Double(positives.count)))
+                         positiveCount == 0 ? 100 : 100 * Double(tp) / Double(positiveCount)))
         }
         func anyTagged(_ t: Float) -> (tp: Int, fp: Int, fn: Int, nearMiss: Int) {
-            let m = Matcher(threshold: t)
-            var tp = 0, fp = 0, fn = 0, near = 0
-            for r in scored {
-                let positive = targets.contains(truth(r))
-                if m.isMatch(r) { if positive { tp += 1 } else { fp += 1 } } else if positive {
-                    fn += 1
-                    if m.isNearMiss(r) { near += 1 }
-                }
-            }
-            return (tp, fp, fn, near)
+            ScenarioValidation.accuracy(results, labels: labels, targets: targets, threshold: t)
         }
         let a = anyTagged(threshold)
         let precision = Double(a.tp) / Double(max(1, a.tp + a.fp)), recall = Double(a.tp) / Double(max(1, a.tp + a.fn))
@@ -224,17 +224,9 @@ enum ScanBenchmark {
             print(String(format: "\nExport: %d operations (%d sidecars) → copied %d, skipped identical %d, renamed %d, failed %d in %.1fs",
                          ops.count, ops.filter(\.isSidecar).count, summary.copied, summary.skippedIdentical, summary.renamed,
                          summary.failures.count, Date().timeIntervalSince(t0)))
-            var problems: [String] = summary.failures.map { "\($0.path): \($0.message)" }
-            for op in ops {
-                if try digest(op.from) != before[op.from] { problems.append("SOURCE MODIFIED: \(op.from.path)") }
-                guard FileManager.default.fileExists(atPath: op.to.path) else { problems.append("missing: \(op.to.path)"); continue }
-                if summary.renamed == 0, try digest(op.to) != before[op.from] { problems.append("content differs: \(op.to.path)") }
-                let rel = FolderEnumerator.relativePath(of: op.from, under: o.source)
-                if !op.to.path.hasSuffix("/" + rel) { problems.append("structure not preserved: \(rel) → \(op.to.path)") }
-                let a = try op.from.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
-                let b = try op.to.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
-                if a != b { problems.append("modification date not preserved: \(rel)") }
-            }
+            var problems = ScenarioValidation.exportProblems(operations: ops, summary: summary, before: before)
+            problems += ScenarioValidation.sidecarProblems(selected: selected.map(\.item), operations: ops,
+                                                           source: o.source, expectations: expectations)
             print(problems.isEmpty ? "Export verified: every file present, byte-identical, dates kept, structure mirrored, sources untouched"
                                    : "EXPORT PROBLEMS:\n  " + problems.prefix(20).joined(separator: "\n  "))
             ok = ok && problems.isEmpty
@@ -251,7 +243,7 @@ enum ScanBenchmark {
     }
 
     static func digest(_ url: URL) throws -> Data {
-        Data(SHA256.hash(data: try Data(contentsOf: url, options: .mappedIfSafe)))
+        try ScenarioValidation.digest(url)
     }
 
     static func footprint() -> Int {

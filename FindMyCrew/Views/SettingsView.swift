@@ -17,6 +17,7 @@ struct SettingsView: View {
                     Text(ModelStore.builtInDisplayName).tag("")
                     ForEach(installed, id: \.self) { Text(($0 as NSString).deletingPathExtension).tag($0) }
                 }
+                .accessibilityLabel("Recognition model")
                 HStack {
                     Button("Import Core ML Model…", action: importModel).disabled(importing)
                     if importing { ProgressView().controlSize(.small) }
@@ -48,10 +49,12 @@ struct SettingsView: View {
                 )) {
                     ForEach(AppSettings.resolutionChoices, id: \.self) { Text("\($0) px").tag($0) }
                 }
+                .accessibilityLabel("Detection resolution")
                 Toggle("Mirror augmentation (more accurate, slower)", isOn: Binding(
                     get: { model.settings.flipAugmentation },
                     set: { apply { $0.flipAugmentation = $1 }($0) }
                 ))
+                .accessibilityLabel("Mirror augmentation")
                 Text("Changing these settings clears scan results.").font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -73,18 +76,22 @@ struct SettingsView: View {
 
     private func importModel() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [UTType(filenameExtension: "mlpackage"), UTType(filenameExtension: "mlmodel"),
-                                     UTType(filenameExtension: "mlmodelc")].compactMap { $0 }
+        panel.allowedContentTypes = ModelStore.importableTypes
         panel.canChooseDirectories = false
         panel.treatsFilePackagesAsDirectories = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        importing = true
-        importError = nil
         Task {
+            guard let url = await Panels.present(panel).first else { return }
+            importing = true
+            importError = nil
             do {
                 let (name, _) = try await ModelStore.importModel(from: url)
                 installed = ModelStore.installedCustomModels()
-                apply { $0.customModelName = $1 }(name)
+                if name == model.settings.customModelName {
+                    // Re-imported the active model: the setting is unchanged but the files are new.
+                    await model.pipelineChanged()
+                } else {
+                    apply { $0.customModelName = $1 }(name)
+                }
             } catch {
                 importError = error.localizedDescription
             }

@@ -42,21 +42,31 @@ targets:
         COREML_CODEGEN_LANGUAGE: None
         COMBINE_HIDPI_IMAGES: YES
 
+  # Hostless: compiles Core + the model directly, so tests run outside the app sandbox
+  # (and don't depend on SwiftUI). Same approach as fmc-eval.
   FindMyCrewTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - FindMyCrewTests
-    dependencies:
-      - target: FindMyCrew
+      - path: FindMyCrewTests
+        excludes:
+          - "Fixtures/**"
+          - "**/.DS_Store"
+      # Public-domain test photos, copied as a folder into the test bundle.
+      - path: FindMyCrewTests/Fixtures
+        type: folder
+        buildPhase: resources
+      - path: FindMyCrew/Core
+      # The wizard state machine (no SwiftUI), so the whole flow can be tested headlessly.
+      - path: FindMyCrew/App
+        excludes:
+          - "FindMyCrewApp.swift"
+      - path: FindMyCrew/Resources/Models/SFace.mlpackage
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.findmycrew.tests
         GENERATE_INFOPLIST_FILE: YES
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Find My Crew.app/Contents/MacOS/Find My Crew"
-        BUNDLE_LOADER: "$(TEST_HOST)"
-        # Lets fixture-based tests find repo-local data (models-cache/).
-        FMC_REPO_ROOT: "$(SRCROOT)"
+        COREML_CODEGEN_LANGUAGE: None
 
   fmc-eval:
     type: tool
@@ -78,8 +88,6 @@ schemes:
     test:
       targets:
         - FindMyCrewTests
-      environmentVariables:
-        FMC_REPO_ROOT: "$(SRCROOT)"
     run:
       config: Debug
   fmc-eval:

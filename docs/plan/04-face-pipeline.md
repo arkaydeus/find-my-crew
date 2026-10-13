@@ -15,6 +15,8 @@ struct DetectedFace: Sendable {
 }
 ```
 - **FaceDetector** — Vision Swift API: `DetectFaceRectanglesRequest` → `DetectFaceLandmarksRequest(inputFaceObservations:)` → `DetectFaceCaptureQualityRequest`. Landmark regions → 5 points: pupils (fallback eye centroid), nose tip (lowest nose‑crest point / nose centroid), outer‑lip extreme left/right points. Points are mapped into top‑left pixel space.
+  - Landmarks use **revision 3** on purpose. Revision 4 (the macOS 27 default) returns all points at one off‑face location for most faces that are small relative to the frame (67 % of faces in the test library). Every such face then warped to the same blank crop and "matched" others. It is also ~2× slower and no more accurate on LFW.
+  - Landmark sets are sanity‑checked (inside the face box, sensible eye distance); implausible ones fall back to box‑based alignment.
 - **FaceAligner** — least‑squares similarity transform (Umeyama, 4 DoF) from the 5 points to the ArcFace template:
   `(38.2946,51.6963) (73.5318,51.5014) (56.0252,71.7366) (41.5493,92.3655) (70.7299,92.2041)`.
   Render 112×112 BGRA `CVPixelBuffer` via `CGContext` with the affine transform (high interpolation). Also produce the horizontally flipped crop for TTA.

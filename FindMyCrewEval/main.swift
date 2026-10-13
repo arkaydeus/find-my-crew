@@ -4,6 +4,7 @@ import Foundation
 // fmc-eval — face verification benchmark for Find My Crew's pipeline.
 //
 //   fmc-eval <lfw-dir> --model <path.mlpackage|.mlmodelc> [--pairs pairs.txt] [--no-flip] [--resolution N]
+//   fmc-eval scan …   end-to-end scan/review/export benchmark (see ScanBenchmark.swift)
 //
 // <lfw-dir> has one sub-folder per identity (LFW layout). If a standard LFW `pairs.txt` is found
 // (next to <lfw-dir> or given with --pairs) the 6 000-pair protocol is used; otherwise random pairs.
@@ -98,6 +99,11 @@ func percentile(_ sorted: [Float], _ p: Double) -> Float {
     sorted[min(sorted.count - 1, max(0, Int(Double(sorted.count - 1) * p)))]
 }
 
+if CommandLine.arguments.dropFirst().first == "scan" {
+    let ok = try await ScanBenchmark.run(ScanBenchmark.parse(Array(CommandLine.arguments.dropFirst(2))))
+    exit(ok ? 0 : 1)
+}
+
 let args = Arguments.parse()
 let embedder = try await FaceEmbedder.load(modelAt: args.model, displayName: args.model.lastPathComponent)
 var options = PipelineOptions()
@@ -152,9 +158,18 @@ print(String(format: "Genuine  mean %.3f  p5 %.3f | Impostor mean %.3f  p99 %.3f
              genuine.reduce(0, +) / Float(genuine.count), percentile(genuine, 0.05),
              impostor.reduce(0, +) / Float(impostor.count), percentile(impostor, 0.99)))
 print(String(format: "Best accuracy %.2f%% at threshold %.3f", best.acc * 100, best.t))
+var tarAtFAR: [Double: Double] = [:]
 for farTarget in [0.01, 0.001] {
     let t = percentile(impostor, 1 - farTarget) + 1e-6
+    tarAtFAR[farTarget] = tar(at: t)
     print(String(format: "TAR @ FAR=%g: %.2f%% (threshold %.3f)", farTarget, tar(at: t) * 100, t))
 }
 let d = embedder.defaultThreshold
 print(String(format: "At default threshold %.3f: TAR %.2f%%  FAR %.2f%%", d, tar(at: d) * 100, far(at: d) * 100))
+
+// Acceptance (docs/plan/10-evaluation-tests.md, PRD §6): TAR ≥ 97 % at FAR = 1 %, and the measured
+// best-accuracy threshold within ±0.05 of the model's shipped default.
+let tarOK = (tarAtFAR[0.01] ?? 0) >= 0.97
+let thresholdOK = abs(best.t - d) <= 0.05
+print("Acceptance: TAR@FAR=1% ≥ 97%: \(tarOK ? "PASS" : "FAIL") · threshold within ±0.05 of default: \(thresholdOK ? "PASS" : "FAIL")")
+if !(tarOK && thresholdOK) { exit(1) }

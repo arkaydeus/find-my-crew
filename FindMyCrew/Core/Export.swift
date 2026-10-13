@@ -99,8 +99,9 @@ enum ExportService {
                 try fm.createDirectory(at: op.to.deletingLastPathComponent(), withIntermediateDirectories: true)
                 var target = op.to
                 if fm.fileExists(atPath: target.path) {
-                    let existing = (try? target.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { $0 }
-                    if let existing, Int64(existing) == op.bytes {
+                    // Read the size from disk: URL resource values are cached per URL instance.
+                    let existing = (try? fm.attributesOfItem(atPath: target.path)[.size] as? NSNumber)?.int64Value
+                    if let existing, existing == op.bytes {
                         summary.skippedIdentical += 1
                         progress(index + 1, operations.count)
                         continue

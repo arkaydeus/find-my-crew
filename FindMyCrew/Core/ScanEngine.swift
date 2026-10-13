@@ -11,12 +11,21 @@ struct FaceHit: Sendable, Hashable {
 }
 
 struct PhotoResult: Sendable, Identifiable {
-    var item: ScanItem
-    var faces: [FaceHit]
-    var error: String?
+    let item: ScanItem
+    let faces: [FaceHit]
+    let error: String?
+    /// Highest face score in the photo (−1 when it has no faces). Stored because review
+    /// re-filters every result on each threshold change.
+    let bestScore: Float
+
+    init(item: ScanItem, faces: [FaceHit], error: String? = nil) {
+        self.item = item
+        self.faces = faces
+        self.error = error
+        bestScore = faces.map(\.score).max() ?? -1
+    }
 
     var id: URL { item.url }
-    var bestScore: Float { faces.map(\.score).max() ?? -1 }
     var bestFace: FaceHit? { faces.max { $0.score < $1.score } }
 }
 
@@ -51,14 +60,14 @@ enum ScanEngine {
     ) -> AsyncStream<PhotoResult> {
         AsyncStream(bufferingPolicy: .unbounded) { continuation in
             let task = Task.detached(priority: .userInitiated) {
-                await withTaskGroup(of: PhotoResult.self) { group in
+                await withTaskGroup(of: PhotoResult?.self) { group in
                     var iterator = items.makeIterator()
                     for _ in 0..<max(1, concurrency) {
                         guard let item = iterator.next() else { break }
                         group.addTask { await process(item, references: references, pipeline: pipeline) }
                     }
                     while let result = await group.next() {
-                        continuation.yield(result)
+                        if let result { continuation.yield(result) }
                         await gate.waitIfPaused()
                         if Task.isCancelled { group.cancelAll(); break }
                         if let item = iterator.next() {
@@ -72,7 +81,8 @@ enum ScanEngine {
         }
     }
 
-    static func process(_ item: ScanItem, references: ReferenceSet, pipeline: FacePipeline) async -> PhotoResult {
+    /// Scores every face in one photo. Returns `nil` if the scan was cancelled before it finished.
+    static func process(_ item: ScanItem, references: ReferenceSet, pipeline: FacePipeline) async -> PhotoResult? {
         do {
             try Task.checkCancellation()
             let image = try autoreleasepool {
@@ -85,7 +95,7 @@ enum ScanEngine {
             }
             return PhotoResult(item: item, faces: hits)
         } catch is CancellationError {
-            return PhotoResult(item: item, faces: [], error: "Cancelled")
+            return nil
         } catch {
             return PhotoResult(item: item, faces: [], error: error.localizedDescription)
         }

@@ -18,9 +18,11 @@ struct ExportView: View {
                             Text("Not chosen").foregroundStyle(.secondary)
                         }
                         Button("Choose…") {
-                            model.destination = Panels.chooseFolder(
-                                prompt: "Copy Here", message: "Choose where to copy the matching photos.", canCreate: true
-                            ) ?? model.destination
+                            Task {
+                                model.destination = await Panels.chooseFolder(
+                                    prompt: "Copy Here", message: "Choose where to copy the matching photos.", canCreate: true
+                                ) ?? model.destination
+                            }
                         }
                         .disabled(model.isExporting)
                     }
@@ -73,9 +75,15 @@ struct ExportView: View {
 
             if let summary = model.exportSummary {
                 Section("Done") {
-                    Label("\(summary.copied) files copied (\(summary.bytesCopied.byteString))", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    if summary.skippedIdentical > 0 {
+                    if summary.copied == 0 && summary.failures.isEmpty && summary.skippedIdentical > 0 {
+                        Label("Nothing new to copy — all \(summary.skippedIdentical) files are already at the destination.",
+                              systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    } else {
+                        Label("\(summary.copied) files copied (\(summary.bytesCopied.byteString))", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
+                    if summary.skippedIdentical > 0 && summary.copied > 0 {
                         Text("\(summary.skippedIdentical) already existed at the destination and were skipped.")
                     }
                     if summary.renamed > 0 {

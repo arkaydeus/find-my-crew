@@ -1,0 +1,17 @@
+# Test fixtures
+
+Public-domain photographs (works of US federal government employees), downscaled
+to 720 px. Sources (Wikimedia Commons):
+
+| File | Source | Licence |
+|---|---|---|
+| `biden_2013.jpg` | [Joe Biden official portrait 2013](https://commons.wikimedia.org/wiki/File:Joe_Biden_official_portrait_2013_cropped.jpg) — White House | Public domain |
+| `biden_2021.jpg` | [Joe Biden presidential portrait](https://commons.wikimedia.org/wiki/File:Joe_Biden_presidential_portrait.jpg) — White House | Public domain |
+| `harris_2021.jpg` | [Kamala Harris Vice Presidential Portrait](https://commons.wikimedia.org/wiki/File:Kamala_Harris_Vice_Presidential_Portrait.jpg) — White House | Public domain |
+| `obama_2012.jpg` | [President Barack Obama](https://commons.wikimedia.org/wiki/File:President_Barack_Obama.jpg) — White House | Public domain |
+| `apollo11_crew.jpg` | [Apollo 11 Crew](https://commons.wikimedia.org/wiki/File:Apollo_11_Crew.jpg) — NASA | Public domain |
+
+Used only by `FindMyCrewTests`; not bundled with the app.
+
+`NoImageInput.mlpackage` is a 4 KB Core ML program generated for the tests (array input, no image input), used to
+check that the custom-model import rejects models that break the I/O contract.

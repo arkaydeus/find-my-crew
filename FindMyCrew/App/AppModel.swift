@@ -76,8 +76,12 @@ final class AppModel {
     // ④ Scan
     private(set) var scanStatus: ScanStatus = .idle
     private(set) var results: [PhotoResult] = []
-    private(set) var scanStart: Date?
+    /// Time spent actively scanning (pauses excluded).
     private(set) var scanElapsed: TimeInterval = 0
+    private var activeSince: Date?
+    private var elapsedBeforePause: TimeInterval = 0
+    /// Identifies the current scan so a cancelled scan's late results are ignored.
+    private var scanGeneration = UUID()
     private(set) var lastScannedPath = ""
     /// Reference faces used for the current results; editing them makes results stale.
     private(set) var scannedReferenceIDs: Set<UUID> = []
@@ -85,9 +89,7 @@ final class AppModel {
     private let pauseGate = PauseGate()
 
     // ⑤ Review
-    var threshold: Float = 0.36
-    var excluded: Set<URL> = []
-    var forceIncluded: Set<URL> = []
+    var matcher = Matcher(threshold: 0.36)
 
     // ⑥ Export
     var destination: URL?
@@ -109,6 +111,14 @@ final class AppModel {
             self.embedder = embedder
             modelError = nil
             threshold = embedder.defaultThreshold
+        } catch where !settings.customModelName.isEmpty {
+            // A broken or missing custom model must never lock the user out: fall back to the built-in one.
+            let name = (settings.customModelName as NSString).deletingPathExtension
+            settings.customModelName = ""
+            await reloadModel()
+            if embedder != nil {
+                modelError = "Custom model “\(name)” could not be loaded (\(error.localizedDescription)). Using the built-in model."
+            }
         } catch {
             embedder = nil
             modelError = "Could not load the face recognition model: \(error.localizedDescription)"
@@ -119,11 +129,21 @@ final class AppModel {
     func pipelineChanged() async {
         cancelScan()
         await reloadModel()
-        results = []
-        scanStatus = .idle
-        let urls = referencePhotos.map(\.url)
+        resetScan()
+        // Re-embed the reference photos with the new pipeline, keeping the user's Yes/No choices.
+        let previous = referencePhotos
         referencePhotos = []
-        addReferencePhotos(urls)
+        addReferencePhotos(previous.map(\.url)) { url, faces in
+            let choices = previous.first { $0.url == url }?.faces ?? []
+            for i in faces.indices {
+                let box = faces[i].face.normalizedBox
+                let match = choices
+                    .map { ($0, FaceDetector.iou($0.face.normalizedBox, box)) }
+                    .filter { $0.1 > 0.4 }
+                    .max { $0.1 < $1.1 }
+                if let (old, _) = match { faces[i].accepted = old.accepted }
+            }
+        }
         if step > .source { step = .source }
     }
 
@@ -160,11 +180,22 @@ final class AppModel {
         referencePhotos.contains { if case .loading = $0.state { true } else { false } }
     }
 
-    func addReferencePhotos(_ urls: [URL]) {
+    /// Detects and embeds faces in new reference photos. `adjust` may change the default
+    /// Yes/No choices before they are shown.
+    func addReferencePhotos(
+        _ urls: [URL], adjust: (@MainActor (URL, inout [ReferenceFace]) -> Void)? = nil
+    ) {
         let existing = Set(referencePhotos.map(\.url))
-        let new = urls.filter { ImageLoader.isSupported($0) && !existing.contains($0) }
+        var seen = Set<URL>()
+        let new = urls.filter { ImageLoader.isSupported($0) && !existing.contains($0) && seen.insert($0).inserted }
+        guard !new.isEmpty else { return }
         guard let pipeline else {
-            if embedder == nil { Task { await reloadModel(); if self.embedder != nil { addReferencePhotos(new) } } }
+            if embedder == nil {
+                Task {
+                    await reloadModel()
+                    if self.embedder != nil { addReferencePhotos(new, adjust: adjust) }
+                }
+            }
             return
         }
         for url in new {
@@ -184,15 +215,19 @@ final class AppModel {
                 } catch {
                     outcome = .failure(error)
                 }
-                await self.finishReference(id: id, outcome: outcome)
+                await self.finishReference(id: id, outcome: outcome, adjust: adjust)
             }
         }
     }
 
-    private func finishReference(id: UUID, outcome: Result<[ReferenceFace], Error>) {
+    private func finishReference(
+        id: UUID, outcome: Result<[ReferenceFace], Error>,
+        adjust: (@MainActor (URL, inout [ReferenceFace]) -> Void)?
+    ) {
         guard let i = referencePhotos.firstIndex(where: { $0.id == id }) else { return }
         switch outcome {
-        case .success(let faces):
+        case .success(var faces):
+            adjust?(referencePhotos[i].url, &faces)
             referencePhotos[i].faces = faces
             referencePhotos[i].state = .done
         case .failure(let error):
@@ -251,7 +286,8 @@ final class AppModel {
 
     var processedCount: Int { results.count }
     var totalCount: Int { enumeration?.items.count ?? 0 }
-    var failedCount: Int { results.filter { $0.error != nil }.count }
+    var failedResults: [PhotoResult] { results.filter { $0.error != nil } }
+    var failedCount: Int { failedResults.count }
     var facesFound: Int { results.reduce(0) { $0 + $1.faces.count } }
     var photosPerSecond: Double { scanElapsed > 0 ? Double(processedCount) / scanElapsed : 0 }
 
@@ -264,45 +300,67 @@ final class AppModel {
         cancelScan()
         resetScan()
         scannedReferenceIDs = Set(faces.map(\.id))
+        matcher.threshold = defaultThreshold
         scanStatus = .running
-        scanStart = Date()
+        activeSince = Date()
         step = .scan
 
         let gate = pauseGate
+        let generation = scanGeneration
         scanTask = Task {
             await gate.setPaused(false)
             var buffer: [PhotoResult] = []
             var lastFlush = Date()
             for await result in ScanEngine.run(items: items, references: references, pipeline: pipeline, gate: gate) {
                 buffer.append(result)
-                if Date().timeIntervalSince(lastFlush) > 0.15 {
-                    flush(&buffer)
+                if Date().timeIntervalSince(lastFlush) > 0.1 {
+                    flush(&buffer, generation: generation)
                     lastFlush = Date()
                 }
             }
-            flush(&buffer)
-            finishScan(cancelled: Task.isCancelled)
+            flush(&buffer, generation: generation)
+            finishScan(cancelled: Task.isCancelled, generation: generation)
         }
     }
 
-    private func flush(_ buffer: inout [PhotoResult]) {
-        guard !buffer.isEmpty else { return }
-        results.append(contentsOf: buffer.filter { $0.error != "Cancelled" })
-        lastScannedPath = buffer.last?.item.relativePath ?? lastScannedPath
-        buffer.removeAll(keepingCapacity: true)
-        if let scanStart, scanStatus == .running { scanElapsed = Date().timeIntervalSince(scanStart) }
+    private func updateElapsed() {
+        scanElapsed = elapsedBeforePause + (activeSince.map { Date().timeIntervalSince($0) } ?? 0)
     }
 
-    private func finishScan(cancelled: Bool) {
-        guard scanStatus == .running || scanStatus == .paused else { return }
-        if let scanStart { scanElapsed = Date().timeIntervalSince(scanStart) }
+    private func flush(_ buffer: inout [PhotoResult], generation: UUID) {
+        guard !buffer.isEmpty, generation == scanGeneration else { return }
+        results.append(contentsOf: buffer)
+        lastScannedPath = buffer.last?.item.relativePath ?? lastScannedPath
+        buffer.removeAll(keepingCapacity: true)
+        updateElapsed()
+        // Results that arrive after Stop are still valid; keep the reviewable list sorted.
+        if scanStatus == .cancelled { sortResults() }
+    }
+
+    private func sortResults() {
         results.sort { $0.bestScore > $1.bestScore }
+    }
+
+    private func finishScan(cancelled: Bool, generation: UUID) {
+        guard generation == scanGeneration, scanStatus == .running || scanStatus == .paused else { return }
+        updateElapsed()
+        activeSince = nil
+        sortResults()
+        scanTask = nil
         scanStatus = cancelled ? .cancelled : .finished
         if !cancelled, step == .scan { step = .review }
     }
 
     func togglePause() {
+        guard scanStatus == .running || scanStatus == .paused else { return }
         let pause = scanStatus == .running
+        if pause {
+            updateElapsed()
+            elapsedBeforePause = scanElapsed
+            activeSince = nil
+        } else {
+            activeSince = Date()
+        }
         scanStatus = pause ? .paused : .running
         let gate = pauseGate
         Task { await gate.setPaused(pause) }
@@ -315,56 +373,47 @@ final class AppModel {
         scanTask.cancel()
         self.scanTask = nil
         if scanStatus == .running || scanStatus == .paused {
-            results.sort { $0.bestScore > $1.bestScore }
+            updateElapsed()
+            activeSince = nil
+            sortResults()
             scanStatus = .cancelled
         }
     }
 
     private func resetScan() {
+        scanGeneration = UUID()
         results = []
         scanStatus = .idle
         scanElapsed = 0
-        excluded = []
-        forceIncluded = []
+        elapsedBeforePause = 0
+        activeSince = nil
+        lastScannedPath = ""
+        scannedReferenceIDs = []
+        matcher = Matcher(threshold: defaultThreshold)
         exportSummary = nil
         exportError = nil
     }
 
     // MARK: ⑤ Review
 
-    var thresholdRange: ClosedRange<Float> {
-        let d = embedder?.defaultThreshold ?? 0.36
-        return max(0.05, d - 0.15)...min(0.95, d + 0.25)
+    var threshold: Float {
+        get { matcher.threshold }
+        set { matcher.threshold = newValue }
     }
 
-    static let nearMissMargin: Float = 0.08
-
-    /// Photos at or above the threshold, best first.
-    var matches: [PhotoResult] {
-        results.filter { $0.bestScore >= threshold }
+    /// The model's calibrated threshold, adjusted for how many reference faces the scan compares against.
+    var defaultThreshold: Float {
+        Matcher.defaultThreshold(model: embedder?.defaultThreshold ?? FaceEmbedder.fallbackThreshold,
+                                 referenceCount: scannedReferenceIDs.count)
     }
 
-    /// Photos just below the threshold, worth a second look.
-    var nearMisses: [PhotoResult] {
-        results.filter { $0.bestScore < threshold && $0.bestScore >= threshold - Self.nearMissMargin }
-    }
+    var thresholdRange: ClosedRange<Float> { Matcher.thresholdRange(default: defaultThreshold) }
 
-    func isIncluded(_ r: PhotoResult) -> Bool {
-        if forceIncluded.contains(r.id) { return true }
-        return r.bestScore >= threshold && !excluded.contains(r.id)
-    }
+    func isIncluded(_ r: PhotoResult) -> Bool { matcher.isIncluded(r) }
 
-    func setIncluded(_ include: Bool, for r: PhotoResult) {
-        if r.bestScore >= threshold {
-            if include { excluded.remove(r.id) } else { excluded.insert(r.id) }
-        } else {
-            if include { forceIncluded.insert(r.id) } else { forceIncluded.remove(r.id) }
-        }
-    }
+    func setIncluded(_ include: Bool, for r: PhotoResult) { matcher.setIncluded(include, for: r) }
 
-    var selectedResults: [PhotoResult] {
-        results.filter(isIncluded)
-    }
+    var selectedResults: [PhotoResult] { matcher.selected(results) }
 
     // MARK: ⑥ Export
 

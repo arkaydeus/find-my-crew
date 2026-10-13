@@ -60,7 +60,18 @@ enum FaceAligner {
         return out
     }
 
-    private static func render(_ image: CGImage, transform m: CGAffineTransform, size: Int, flipped: Bool) -> CVPixelBuffer? {
+    /// A mid-grey crop, used to probe a model.
+    static func blankCrop(size: Int) -> CVPixelBuffer? {
+        guard let buffer = makeBuffer(size: size) else { return nil }
+        CVPixelBufferLockBaseAddress(buffer, [])
+        defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
+        if let base = CVPixelBufferGetBaseAddress(buffer) {
+            memset(base, 0x80, CVPixelBufferGetBytesPerRow(buffer) * size)
+        }
+        return buffer
+    }
+
+    private static func makeBuffer(size: Int) -> CVPixelBuffer? {
         var buffer: CVPixelBuffer?
         let attrs: [CFString: Any] = [
             kCVPixelBufferCGImageCompatibilityKey: true,
@@ -68,8 +79,13 @@ enum FaceAligner {
             kCVPixelBufferIOSurfacePropertiesKey: [:] as CFDictionary,
         ]
         guard CVPixelBufferCreate(kCFAllocatorDefault, size, size, kCVPixelFormatType_32BGRA,
-                                  attrs as CFDictionary, &buffer) == kCVReturnSuccess,
-              let buffer else { return nil }
+                                  attrs as CFDictionary, &buffer) == kCVReturnSuccess
+        else { return nil }
+        return buffer
+    }
+
+    private static func render(_ image: CGImage, transform m: CGAffineTransform, size: Int, flipped: Bool) -> CVPixelBuffer? {
+        guard let buffer = makeBuffer(size: size) else { return nil }
 
         CVPixelBufferLockBaseAddress(buffer, [])
         defer { CVPixelBufferUnlockBaseAddress(buffer, []) }

@@ -60,6 +60,11 @@ enum ImageLoader {
         return image
     }
 
+    /// Small upright preview for UI grids.
+    static func thumbnail(_ url: URL, maxPixel: Int = 400) throws -> CGImage {
+        try load(url, maxPixel: maxPixel)
+    }
+
     private static func thumbnail(_ source: CGImageSource, maxPixel: Int, always: Bool) -> CGImage? {
         let options: [CFString: Any] = [
             always ? kCGImageSourceCreateThumbnailFromImageAlways

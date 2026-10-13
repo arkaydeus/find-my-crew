@@ -18,9 +18,11 @@ struct ExportView: View {
                             Text("Not chosen").foregroundStyle(.secondary)
                         }
                         Button("Choose…") {
-                            model.destination = Panels.chooseFolder(
-                                prompt: "Copy Here", message: "Choose where to copy the matching photos.", canCreate: true
-                            ) ?? model.destination
+                            Task {
+                                model.destination = await Panels.chooseFolder(
+                                    prompt: "Copy Here", message: "Choose where to copy the matching photos.", canCreate: true
+                                ) ?? model.destination
+                            }
                         }
                         .disabled(model.isExporting)
                     }
@@ -72,10 +74,19 @@ struct ExportView: View {
             }
 
             if let summary = model.exportSummary {
-                Section("Done") {
-                    Label("\(summary.copied) files copied (\(summary.bytesCopied.byteString))", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    if summary.skippedIdentical > 0 {
+                Section(summary.completionTitle) {
+                    if summary.cancelled {
+                        Text("Copy stopped before all files were processed. You can copy again to continue.")
+                    }
+                    if !summary.cancelled && summary.copied == 0 && summary.failures.isEmpty && summary.skippedIdentical > 0 {
+                        Label("Nothing new to copy — all \(summary.skippedIdentical) files are already at the destination.",
+                              systemImage: summary.cancelled ? "stop.circle" : "checkmark.circle.fill")
+                            .foregroundStyle(summary.cancelled ? .orange : .green)
+                    } else {
+                        Label("\(summary.copied) files copied (\(summary.bytesCopied.byteString))", systemImage: summary.cancelled ? "stop.circle" : "checkmark.circle.fill")
+                            .foregroundStyle(summary.cancelled ? .orange : .green)
+                    }
+                    if summary.skippedIdentical > 0 && (summary.copied > 0 || summary.cancelled) {
                         Text("\(summary.skippedIdentical) already existed at the destination and were skipped.")
                     }
                     if summary.renamed > 0 {

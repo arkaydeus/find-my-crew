@@ -12,7 +12,7 @@ final class ThumbnailCache: @unchecked Sendable {
     func thumbnail(for url: URL, maxPixel: Int = 360) async -> CGImage? {
         if let hit = cache.object(forKey: url as NSURL) { return hit }
         let image = await Task.detached(priority: .utility) {
-            try? ImageLoader.load(url, maxPixel: maxPixel)
+            try? ImageLoader.thumbnail(url, maxPixel: maxPixel)
         }.value
         if let image { cache.setObject(image, forKey: url as NSURL) }
         return image
@@ -80,20 +80,37 @@ extension View {
     }
 }
 
+/// Open panels, shown as sheets on the active window. Unlike `runModal`, a sheet doesn't block the main thread
+/// (progress keeps updating), and only one panel can be open at a time even if a button is triggered again
+/// (e.g. through accessibility while a panel is up), which previously stacked modal sessions and wedged the app.
+@MainActor
 enum Panels {
-    @MainActor
-    static func chooseImages() -> [URL] {
+    private static var isPresenting = false
+
+    static func present(_ panel: NSOpenPanel) async -> [URL] {
+        guard !isPresenting else { return [] }
+        isPresenting = true
+        defer { isPresenting = false }
+        let response: NSApplication.ModalResponse
+        if let window = NSApp.keyWindow ?? NSApp.mainWindow, window.attachedSheet == nil {
+            response = await panel.beginSheetModal(for: window)
+        } else {
+            response = await panel.begin()
+        }
+        return response == .OK ? panel.urls : []
+    }
+
+    static func chooseImages() async -> [URL] {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.allowedContentTypes = [.image]
         panel.prompt = "Add Photos"
         panel.message = "Choose photos of the people you want to find."
-        return panel.runModal() == .OK ? panel.urls : []
+        return await present(panel)
     }
 
-    @MainActor
-    static func chooseFolder(prompt: String, message: String, canCreate: Bool = false) -> URL? {
+    static func chooseFolder(prompt: String, message: String, canCreate: Bool = false) async -> URL? {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -101,7 +118,7 @@ enum Panels {
         panel.allowsMultipleSelection = false
         panel.prompt = prompt
         panel.message = message
-        return panel.runModal() == .OK ? panel.url : nil
+        return await present(panel).first
     }
 }
 

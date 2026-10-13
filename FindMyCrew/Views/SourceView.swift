@@ -59,8 +59,10 @@ struct SourceView: View {
     }
 
     private func choose() {
-        if let url = Panels.chooseFolder(prompt: "Choose", message: "Choose the folder that contains your photos.") {
-            model.chooseSource(url)
+        Task {
+            if let url = await Panels.chooseFolder(prompt: "Choose", message: "Choose the folder that contains your photos.") {
+                model.chooseSource(url)
+            }
         }
     }
 }

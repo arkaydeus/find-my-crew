@@ -12,7 +12,7 @@ struct ReferencesView: View {
                     systemImage: "person.2.crop.square.stack",
                     message: "Drop photos of the people you want to find, or click Add Photos.\nUse 3–10 varied photos per person for best results.",
                     actionTitle: "Add Photos…",
-                    action: { model.addReferencePhotos(Panels.chooseImages()) }
+                    action: { Task { model.addReferencePhotos(await Panels.chooseImages()) } }
                 )
             } else {
                 ScrollView {
@@ -32,7 +32,7 @@ struct ReferencesView: View {
                     .disabled(model.referencePhotos.isEmpty)
                 Button("Reject All", systemImage: "xmark.circle") { model.setAllAccepted(false) }
                     .disabled(model.referencePhotos.isEmpty)
-                Button("Add Photos…", systemImage: "plus") { model.addReferencePhotos(Panels.chooseImages()) }
+                Button("Add Photos…", systemImage: "plus") { Task { model.addReferencePhotos(await Panels.chooseImages()) } }
                     .disabled(model.embedder == nil)
             }
         }
@@ -57,7 +57,17 @@ private struct ReferencePhotoRow: View {
             if !photo.faces.isEmpty {
                 ScrollView(.horizontal) {
                     HStack(spacing: 12) {
-                        ForEach(photo.faces) { FaceTile(face: $0) }
+                        ForEach(photo.faces) { face in
+                            FaceTile(face: face)
+                                .contextMenu {
+                                    Button(face.accepted ? "Don’t Search for This Face" : "Search for This Face") {
+                                        model.setAccepted(!face.accepted, faceID: face.id)
+                                    }
+                                    Button("Reveal Photo in Finder") { model.reveal(photo.url) }
+                                    Divider()
+                                    Button("Remove Photo", role: .destructive) { model.removeReferencePhoto(photo.id) }
+                                }
+                        }
                     }
                     .padding(.vertical, 2)
                 }
@@ -120,7 +130,12 @@ private struct FaceTile: View {
             .labelsHidden()
             .frame(width: 120)
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Face, \(face.accepted ? "selected" : "not selected")")
+        // One accessible toggle per face: the segmented picker inside isn't reachable once children are combined.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Face")
+        .accessibilityValue(face.accepted ? "Search for this face" : "Ignored")
+        .accessibilityHint(face.face.qualityWarning.map { "\($0) — may give less reliable matches." } ?? "")
+        .accessibilityAddTraits(.isToggle)
+        .accessibilityAction { model.setAccepted(!face.accepted, faceID: face.id) }
     }
 }

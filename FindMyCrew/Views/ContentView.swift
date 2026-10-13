@@ -45,14 +45,17 @@ struct ContentView: View {
     }
 
     @ViewBuilder private var modelStatus: some View {
-        if let error = model.modelError {
-            Label(error, systemImage: "exclamationmark.triangle.fill")
-                .font(.caption).foregroundStyle(.red)
-        } else if let embedder = model.embedder {
-            Label(embedder.displayName, systemImage: "cpu")
-                .font(.caption).foregroundStyle(.secondary).lineLimit(2)
-        } else {
-            ProgressView().controlSize(.small)
+        VStack(alignment: .leading, spacing: 6) {
+            if let error = model.modelError {
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption).foregroundStyle(.red)
+            }
+            if let embedder = model.embedder {
+                Label(embedder.displayName, systemImage: "cpu")
+                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            } else if model.modelError == nil {
+                ProgressView().controlSize(.small)
+            }
         }
     }
 

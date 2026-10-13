@@ -11,12 +11,21 @@ struct FaceHit: Sendable, Hashable {
 }
 
 struct PhotoResult: Sendable, Identifiable {
-    var item: ScanItem
-    var faces: [FaceHit]
-    var error: String?
+    let item: ScanItem
+    let faces: [FaceHit]
+    let error: String?
+    /// Highest face score in the photo (−1 when it has no faces). Stored because review
+    /// re-filters every result on each threshold change.
+    let bestScore: Float
+
+    init(item: ScanItem, faces: [FaceHit], error: String? = nil) {
+        self.item = item
+        self.faces = faces
+        self.error = error
+        bestScore = faces.map(\.score).max() ?? -1
+    }
 
     var id: URL { item.url }
-    var bestScore: Float { faces.map(\.score).max() ?? -1 }
     var bestFace: FaceHit? { faces.max { $0.score < $1.score } }
 }
 
@@ -34,8 +43,26 @@ actor PauseGate {
     }
 
     func waitIfPaused() async {
-        guard paused else { return }
+        guard paused, !Task.isCancelled else { return }
         await withCheckedContinuation { waiters.append($0) }
+    }
+}
+
+/// Stop the producer without cancelling the consumer, so completed results can still be drained.
+final class ScanControl: @unchecked Sendable {
+    private let lock = NSLock()
+    private var task: Task<Void, Never>?
+    private var cancelled = false
+
+    func install(_ task: Task<Void, Never>) {
+        lock.withLock {
+            self.task = task
+            if cancelled { task.cancel() }
+        }
+    }
+
+    func cancel() {
+        lock.withLock { cancelled = true; task?.cancel() }
     }
 }
 
@@ -47,32 +74,63 @@ enum ScanEngine {
         references: ReferenceSet,
         pipeline: FacePipeline,
         concurrency: Int = ProcessInfo.processInfo.activeProcessorCount,
-        gate: PauseGate = PauseGate()
+        gate: PauseGate = PauseGate(),
+        control: ScanControl = ScanControl()
+    ) -> AsyncStream<PhotoResult> {
+        stream(items: items, concurrency: concurrency, gate: gate, control: control) { item in
+            await process(item, references: references, pipeline: pipeline)
+        }
+    }
+
+    /// Separate worker entry point allows deterministic cancellation coverage without model timing.
+    static func stream(
+        items: [ScanItem], concurrency: Int, gate: PauseGate = PauseGate(), control: ScanControl,
+        process: @escaping @Sendable (ScanItem) async -> PhotoResult?
     ) -> AsyncStream<PhotoResult> {
         AsyncStream(bufferingPolicy: .unbounded) { continuation in
             let task = Task.detached(priority: .userInitiated) {
-                await withTaskGroup(of: PhotoResult.self) { group in
-                    var iterator = items.makeIterator()
-                    for _ in 0..<max(1, concurrency) {
-                        guard let item = iterator.next() else { break }
-                        group.addTask { await process(item, references: references, pipeline: pipeline) }
-                    }
-                    while let result = await group.next() {
-                        continuation.yield(result)
-                        await gate.waitIfPaused()
-                        if Task.isCancelled { group.cancelAll(); break }
-                        if let item = iterator.next() {
-                            group.addTask { await process(item, references: references, pipeline: pipeline) }
-                        }
-                    }
+                await produce(items: items, concurrency: concurrency, gate: gate, process: process) {
+                    continuation.yield($0)
                 }
                 continuation.finish()
             }
+            control.install(task)
             continuation.onTermination = { _ in task.cancel() }
         }
     }
 
-    static func process(_ item: ScanItem, references: ReferenceSet, pipeline: FacePipeline) async -> PhotoResult {
+    static func produce(
+        items: [ScanItem], concurrency: Int, gate: PauseGate,
+        process: @escaping @Sendable (ScanItem) async -> PhotoResult?,
+        yield: @escaping @Sendable (PhotoResult) -> Void
+    ) async {
+        await withTaskCancellationHandler {
+            await withTaskGroup(of: PhotoResult?.self) { group in
+                var iterator = items.makeIterator()
+                for _ in 0..<max(1, concurrency) {
+                    guard !Task.isCancelled, let item = iterator.next() else { break }
+                    group.addTask { await process(item) }
+                }
+                while let result = await group.next() {
+                    if let result { yield(result) }
+                    if !Task.isCancelled { await gate.waitIfPaused() }
+                    if Task.isCancelled {
+                        group.cancelAll()
+                        // Keep draining: children that already completed still have valid results.
+                        continue
+                    }
+                    if let item = iterator.next() {
+                        group.addTask { await process(item) }
+                    }
+                }
+            }
+        } onCancel: {
+            Task { await gate.setPaused(false) }
+        }
+    }
+
+    /// Scores every face in one photo. Returns `nil` if the scan was cancelled before it finished.
+    static func process(_ item: ScanItem, references: ReferenceSet, pipeline: FacePipeline) async -> PhotoResult? {
         do {
             try Task.checkCancellation()
             let image = try autoreleasepool {
@@ -85,7 +143,7 @@ enum ScanEngine {
             }
             return PhotoResult(item: item, faces: hits)
         } catch is CancellationError {
-            return PhotoResult(item: item, faces: [], error: "Cancelled")
+            return nil
         } catch {
             return PhotoResult(item: item, faces: [], error: error.localizedDescription)
         }

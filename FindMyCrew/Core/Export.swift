@@ -77,6 +77,13 @@ enum ExportPlanner {
 }
 
 struct ExportSummary: Sendable {
+    struct Output: Sendable {
+        let operation: CopyOperation
+        let destination: URL
+    }
+    var outputs: [Output] = []
+    var cancelled = false
+    var completionTitle: String { cancelled ? "Copy stopped" : (failures.isEmpty ? "Done" : "Copy finished with errors") }
     var copied = 0
     var skippedIdentical = 0
     var renamed = 0
@@ -94,14 +101,16 @@ enum ExportService {
         let fm = FileManager.default
         var summary = ExportSummary()
         for (index, op) in operations.enumerated() {
-            if Task.isCancelled { break }
+            if Task.isCancelled { summary.cancelled = true; break }
             do {
                 try fm.createDirectory(at: op.to.deletingLastPathComponent(), withIntermediateDirectories: true)
                 var target = op.to
                 if fm.fileExists(atPath: target.path) {
-                    let existing = (try? target.resourceValues(forKeys: [.fileSizeKey]).fileSize).flatMap { $0 }
-                    if let existing, Int64(existing) == op.bytes {
+                    // Read the size from disk: URL resource values are cached per URL instance.
+                    let existing = (try? fm.attributesOfItem(atPath: target.path)[.size] as? NSNumber)?.int64Value
+                    if let existing, existing == op.bytes {
                         summary.skippedIdentical += 1
+                        summary.outputs.append(.init(operation: op, destination: target))
                         progress(index + 1, operations.count)
                         continue
                     }
@@ -110,6 +119,7 @@ enum ExportService {
                 }
                 // copyItem clones on APFS and preserves dates and extended attributes.
                 try fm.copyItem(at: op.from, to: target)
+                summary.outputs.append(.init(operation: op, destination: target))
                 summary.copied += 1
                 summary.bytesCopied += op.bytes
             } catch {

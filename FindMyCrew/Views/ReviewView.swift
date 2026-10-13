@@ -7,59 +7,100 @@ struct ReviewView: View {
     @State private var previewURL: URL?
     @State private var focused: URL?
     @State private var showNearMisses = true
+    @State private var gridWidth: CGFloat = 800
+    @FocusState private var gridFocused: Bool
 
     private let columns = [GridItem(.adaptive(minimum: 170, maximum: 240), spacing: 12)]
 
     var body: some View {
-        @Bindable var model = model
-        let matches = model.matches
-        let nearMisses = model.nearMisses
+        let (matches, manual, nearMisses) = model.matcher.reviewGroups(model.results)
+        let selectedCount = model.selectedResults.count
+        let visible = matches + manual + (showNearMisses ? nearMisses : [])
 
         VStack(spacing: 0) {
-            controls(matches: matches)
+            controls(matches: matches, selectedCount: selectedCount)
             Divider()
-            if matches.isEmpty && nearMisses.isEmpty {
+            if matches.isEmpty && manual.isEmpty && nearMisses.isEmpty {
                 Placeholder(title: "No matches", systemImage: "person.fill.questionmark",
                             message: "Try lowering the match threshold, or add more reference photos.")
             } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        LazyVGrid(columns: columns, spacing: 12) {
-                            ForEach(matches) { tile($0) }
-                        }
-                        if !nearMisses.isEmpty {
-                            DisclosureGroup(isExpanded: $showNearMisses) {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            LazyVGrid(columns: columns, spacing: 12) {
+                                ForEach(matches) { tile($0) }
+                            }
+                            if !manual.isEmpty {
+                                Text("Manually included (\(manual.count))").font(.headline)
                                 LazyVGrid(columns: columns, spacing: 12) {
-                                    ForEach(nearMisses) { tile($0) }
+                                    ForEach(manual) { tile($0) }
                                 }
-                                .padding(.top, 8)
-                            } label: {
-                                Text("Near misses (\(nearMisses.count)) — just below the threshold. Tick any that are a match.")
-                                    .font(.headline)
+                            }
+                            if !nearMisses.isEmpty {
+                                DisclosureGroup(isExpanded: $showNearMisses) {
+                                    LazyVGrid(columns: columns, spacing: 12) {
+                                        ForEach(nearMisses) { tile($0) }
+                                    }
+                                    .padding(.top, 8)
+                                } label: {
+                                    Text("Near misses (\(nearMisses.count)) — just below the threshold. Tick any that are a match.")
+                                        .font(.headline)
+                                }
                             }
                         }
+                        .padding(16)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { gridWidth = $0 }
                     }
-                    .padding(16)
-                }
-                .focusable()
-                .focusEffectDisabled()
-                .onKeyPress(.space) {
-                    guard let focused else { return .ignored }
-                    previewURL = focused
-                    return .handled
+                    .focusable()
+                    .focused($gridFocused)
+                    .focusEffectDisabled()
+                    .onKeyPress(.space) {
+                        guard let focused else { return .ignored }
+                        previewURL = focused
+                        return .handled
+                    }
+                    .onKeyPress(.return) {
+                        guard let focused, let r = visible.first(where: { $0.id == focused }) else { return .ignored }
+                        model.setIncluded(!model.isIncluded(r), for: r)
+                        return .handled
+                    }
+                    .onKeyPress(keys: [.leftArrow, .rightArrow, .upArrow, .downArrow]) { press in
+                        moveFocus(press.key, in: visible) ? .handled : .ignored
+                    }
+                    .onChange(of: focused) { _, url in
+                        if let url { withAnimation { proxy.scrollTo(url) } }
+                    }
                 }
             }
         }
-        .quickLookPreview($previewURL, in: (matches + nearMisses).map(\.item.url))
+        .quickLookPreview($previewURL, in: visible.map(\.item.url))
     }
 
-    private func controls(matches: [PhotoResult]) -> some View {
+    /// Arrow keys move the focused tile (left/right by one, up/down by a row of the adaptive grid).
+    private func moveFocus(_ key: KeyEquivalent, in items: [PhotoResult]) -> Bool {
+        guard !items.isEmpty else { return false }
+        let row = max(1, Int((gridWidth - 32 + 12) / (170 + 12)))
+        let current = focused.flatMap { url in items.firstIndex { $0.id == url } }
+        let step = switch key {
+        case .leftArrow: -1
+        case .rightArrow: 1
+        case .upArrow: -row
+        default: row
+        }
+        let next = current.map { min(max($0 + step, 0), items.count - 1) } ?? 0
+        focused = items[next].id
+        if previewURL != nil { previewURL = items[next].item.url }
+        return true
+    }
+
+    private func controls(matches: [PhotoResult], selectedCount: Int) -> some View {
         @Bindable var model = model
+        let excludedCount = matches.count - matches.filter(model.isIncluded).count
         return HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(model.selectedResults.count) photos selected")
+                Text("\(selectedCount) photos selected")
                     .font(.headline)
-                Text("\(matches.count) matches · \(model.excluded.count) excluded · \(model.results.count) scanned")
+                Text("\(matches.count) matches (\(excludedCount) excluded) of \(model.results.count) scanned")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
@@ -70,8 +111,8 @@ struct ReviewView: View {
                 .accessibilityLabel("Match threshold")
             Text("Stricter").font(.caption).foregroundStyle(.secondary)
             Text(String(format: "%.2f", model.threshold)).font(.body.monospacedDigit()).frame(width: 38)
-            Button("Reset") { model.threshold = model.embedder?.defaultThreshold ?? model.threshold }
-                .disabled(model.threshold == model.embedder?.defaultThreshold)
+            Button("Reset") { model.threshold = model.defaultThreshold }
+                .disabled(model.threshold == model.defaultThreshold)
         }
         .padding(12)
     }
@@ -115,7 +156,7 @@ struct ReviewView: View {
         .background(isFocused ? Color.accentColor.opacity(0.15) : .clear, in: RoundedRectangle(cornerRadius: 10))
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { previewURL = result.item.url }
-        .onTapGesture { focused = result.id }
+        .onTapGesture { focused = result.id; gridFocused = true }
         .contextMenu {
             Button(included ? "Exclude" : "Include") { model.setIncluded(!included, for: result) }
             Button("Quick Look") { previewURL = result.item.url }

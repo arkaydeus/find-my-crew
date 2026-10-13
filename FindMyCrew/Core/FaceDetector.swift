@@ -21,36 +21,55 @@ struct FaceDetector: Sendable {
         let size = CGSize(width: image.width, height: image.height)
 
         var rectangles = DetectFaceRectanglesRequest()
-        var landmarks = DetectFaceLandmarksRequest()
-        if #available(macOS 27.0, *) {
-            rectangles = DetectFaceRectanglesRequest(.revision4)
-            landmarks = DetectFaceLandmarksRequest(.revision4)
-        }
+        if #available(macOS 27.0, *) { rectangles = DetectFaceRectanglesRequest(.revision4) }
         let faces = try await rectangles.perform(on: image)
         guard !faces.isEmpty else { return [] }
 
+        // Landmarks revision 3, deliberately. Revision 4 (the macOS 27 default) returns every point at the same
+        // off-face location for most faces that are small relative to the frame (67 % of faces in a test library
+        // of event photos), is ~2× slower, and is no more accurate on LFW (TAR@FAR=1 %: 99.5 vs 99.4 %).
+        var landmarks = DetectFaceLandmarksRequest(.revision3)
         landmarks.inputFaceObservations = faces
         var quality = DetectFaceCaptureQualityRequest()
         quality.inputFaceObservations = faces
-        async let landmarked = landmarks.perform(on: image)
-        async let scored = quality.perform(on: image)
+        let landmarkRequest = landmarks, qualityRequest = quality
+        async let landmarked = landmarkRequest.perform(on: image)
+        async let scored = qualityRequest.perform(on: image)
         let withLandmarks = (try? await landmarked) ?? []
         let withQuality = (try? await scored) ?? []
 
-        return faces.map { face in
+        var points: [UUID: [CGPoint]] = [:]
+        for face in faces {
             let box = face.boundingBox.toImageCoordinates(size, origin: .upperLeft)
-            let lm = Self.closest(to: face, in: withLandmarks)?.landmarks
-            let q = Self.closest(to: face, in: withQuality)?.captureQuality?.score
-            return RawFace(
-                boundingBox: box,
-                landmarks5: lm.flatMap { Self.fivePoints(from: $0, imageSize: size) },
-                quality: q,
+            // Implausible landmarks fall back to box-based alignment rather than warping garbage.
+            if let lm = Self.closest(to: face, in: withLandmarks)?.landmarks,
+               let five = Self.fivePoints(from: lm, imageSize: size), Self.isPlausible(five, in: box) {
+                points[face.uuid] = five
+            }
+        }
+
+        return faces.map { face in
+            RawFace(
+                boundingBox: face.boundingBox.toImageCoordinates(size, origin: .upperLeft),
+                landmarks5: points[face.uuid],
+                quality: Self.closest(to: face, in: withQuality)?.captureQuality?.score,
                 yaw: face.yaw.converted(to: .degrees).value,
                 roll: face.roll.converted(to: .degrees).value,
                 pitch: face.pitch.converted(to: .degrees).value,
                 confidence: face.confidence
             )
         }
+    }
+
+    /// Rejects degenerate landmark sets: every point must lie in (or near) the face box, and the eyes must be
+    /// a sensible distance apart. A bad set would warp the crop into garbage that matches other garbage.
+    static func isPlausible(_ five: [CGPoint], in box: CGRect) -> Bool {
+        guard five.count == 5, five.allSatisfy({ $0.x.isFinite && $0.y.isFinite }) else { return false }
+        let area = box.insetBy(dx: -box.width * 0.35, dy: -box.height * 0.35)
+        guard five.allSatisfy(area.contains) else { return false }
+        let eyes = hypot(five[1].x - five[0].x, five[1].y - five[0].y)
+        let size = max(box.width, box.height)
+        return eyes > size * 0.15 && eyes < size * 1.2
     }
 
     /// Follow-up requests may return observations in a different order; match by UUID, then by box overlap.

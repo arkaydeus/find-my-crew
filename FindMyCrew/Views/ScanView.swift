@@ -3,11 +3,13 @@ import SwiftUI
 /// Step ④: scan progress.
 struct ScanView: View {
     @Environment(AppModel.self) private var model
+    @State private var showSkipped = false
 
     var body: some View {
         let total = max(model.totalCount, 1)
         let processed = model.processedCount
         let recent = model.results.suffix(400).filter { $0.bestScore >= model.threshold }.suffix(12)
+        let skipped = model.failedResults
 
         VStack(spacing: 24) {
             Spacer()
@@ -31,19 +33,40 @@ struct ScanView: View {
                     stat("\(model.facesFound)", "faces seen")
                     stat(String(format: "%.1f/s", model.photosPerSecond), "speed")
                     stat(eta, "remaining")
-                    stat("\(model.failedCount)", "unreadable")
+                    stat("\(skipped.count)", "skipped")
                 }
             }
 
             if !recent.isEmpty {
-                HStack(spacing: 8) {
-                    ForEach(Array(recent)) { r in
-                        ThumbnailView(url: r.item.url, highlight: r.bestFace?.box)
-                            .frame(width: 72, height: 72)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                // Scrolls rather than widening the view: a fixed-width row of thumbnails used to push the
+                // detail pane wider than the window and squash the sidebar.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(Array(recent)) { r in
+                            ThumbnailView(url: r.item.url, highlight: r.bestFace?.box)
+                                .frame(width: 72, height: 72)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                        }
                     }
                 }
+                .defaultScrollAnchor(.trailing)
+                .frame(maxWidth: 600)
                 .frame(height: 76)
+                .accessibilityLabel("Recent matches")
+            }
+
+            if !skipped.isEmpty {
+                DisclosureGroup("\(skipped.count) file(s) could not be read and were skipped", isExpanded: $showSkipped) {
+                    List(skipped) { r in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(r.item.relativePath).font(.callout.monospaced()).lineLimit(1).truncationMode(.middle)
+                            Text(r.error ?? "").font(.caption).foregroundStyle(.secondary)
+                        }
+                        .contextMenu { Button("Reveal in Finder") { model.reveal(r.item.url) } }
+                    }
+                    .frame(height: 140)
+                }
+                .frame(maxWidth: 520)
             }
 
             HStack {

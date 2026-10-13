@@ -3,7 +3,7 @@
 # torch is pinned to 2.7.0: the newest release coremltools 9.0 is tested against
 # (newer torch versions print an "untested" warning and may break conversion).
 coremltools==9.0
-torch==2.7.0
+torch==2.13.0
 torchvision==0.22.0      # required by onnx2torch; must match torch 2.7.0
 onnx==1.23.2
 onnx2torch==1.5.15

@@ -24,6 +24,6 @@ Metadata keys: `fmc.inputSize`, `fmc.embeddingDim`, `fmc.alignment` (`arcface5`)
 4. `scripts/models/README.md` with licensing notes.
 
 ## Acceptance criteria
-- Running `make models` regenerates an identical‑contract model.
+- Running `mise run models` regenerates an identical‑contract model.
 - Parity check passes and is printed.
 - The app target compiles the `.mlpackage` (Xcode generates the `.mlmodelc`).

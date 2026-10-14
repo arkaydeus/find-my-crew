@@ -25,7 +25,7 @@ struct ReferencesView: View {
                 }
             }
         }
-        .onFileDrop { model.addReferencePhotos($0) }
+        .onFileDrop { model.receiveDrop($0, kind: .images) }
         .toolbar {
             ToolbarItemGroup {
                 Button("Accept All", systemImage: "checkmark.circle") { model.setAllAccepted(true) }

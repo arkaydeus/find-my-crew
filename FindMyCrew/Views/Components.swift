@@ -52,9 +52,11 @@ struct ThumbnailView: View {
     }
 }
 
-/// Drop target accepting file URLs.
+/// Drop delivery is asynchronous: accept the operation only when at least one provider matches
+/// the target, then report resolution failures while handing successful files to the consumer.
 struct FileDropModifier: ViewModifier {
-    var onDrop: ([URL]) -> Void
+    var kind: DropKind
+    var onDrop: (DropResult) -> Void
     @State private var targeted = false
 
     func body(content: Content) -> some View {
@@ -67,16 +69,21 @@ struct FileDropModifier: ViewModifier {
                         .allowsHitTesting(false)
                 }
             }
-            .dropDestination(for: URL.self) { urls, _ in
-                onDrop(urls)
-                return !urls.isEmpty
-            } isTargeted: { targeted = $0 }
+            .onDrop(of: kind.acceptedTypes, isTargeted: $targeted) { providers in
+                guard providers.contains(where: { provider in
+                    kind.acceptedTypes.contains { provider.hasItemConformingToTypeIdentifier($0.identifier) }
+                }) else { return false }
+                Task { @MainActor in
+                    onDrop(await DroppedItems.resolve(providers, kind: kind))
+                }
+                return true
+            }
     }
 }
 
 extension View {
-    func onFileDrop(_ action: @escaping ([URL]) -> Void) -> some View {
-        modifier(FileDropModifier(onDrop: action))
+    func onFileDrop(kind: DropKind = .images, _ action: @escaping (DropResult) -> Void) -> some View {
+        modifier(FileDropModifier(kind: kind, onDrop: action))
     }
 }
 
@@ -138,7 +145,8 @@ struct Placeholder: View {
         ContentUnavailableView {
             Label(title, systemImage: systemImage)
         } description: {
-            Text(message)
+            // ContentUnavailableView caps the description width; keep each line whole.
+            Text(message).fixedSize(horizontal: true, vertical: false)
         } actions: {
             if let actionTitle, let action {
                 Button(actionTitle, action: action).buttonStyle(.borderedProminent).controlSize(.large)

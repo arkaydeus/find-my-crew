@@ -1,0 +1,9 @@
+{
+  "setupLocal": [
+    "mise install",
+    "mise run project"
+  ],
+  "run": [
+    "mise run run"
+  ]
+}

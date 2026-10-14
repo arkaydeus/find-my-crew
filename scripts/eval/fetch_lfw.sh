@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Download Labeled Faces in the Wild (LFW) for `make eval` into models-cache/eval/.
+# Download Labeled Faces in the Wild (LFW) for `mise run eval` into models-cache/eval/.
 #
 # Result:
 #   models-cache/eval/lfw/<Identity>/<Identity>_NNNN.jpg   (13 233 images, 5 749 identities)

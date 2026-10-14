@@ -33,6 +33,14 @@ struct ContentView: View {
             }
             .navigationTitle(model.step.title)
         }
+        .alert("Some items couldn’t be added", isPresented: Binding(
+            get: { !model.dropFailures.isEmpty },
+            set: { if !$0 { model.dropFailures.removeAll() } }
+        )) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(model.dropFailureMessage ?? "")
+        }
     }
 
     private func badge(for step: Step) -> Text? {

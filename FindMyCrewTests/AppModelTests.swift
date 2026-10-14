@@ -148,6 +148,71 @@ struct AppModelTests {
         model.settings.flipAugmentation = true
     }
 
+    @Test func mixedDropImportsSuccessesAndRetainsFailuresAfterNavigation() async throws {
+        let model = try await makeModel()
+        let failure = DropFailure(name: "Failed photo", reason: "Could not read the provider’s file.")
+        model.receiveDrop(DropResult(files: [DroppedFile(url: Fixtures.url("harris_2021.jpg"))], failures: [failure]), kind: .images)
+        try await waitUntil("mixed drop") { !model.isProcessingReferences }
+        #expect(model.referencePhotos.count == 1 && model.acceptedFaces.count == 1)
+        model.step = .source
+        // A second, later failed drop must not discard the first operation's feedback.
+        model.receiveDrop(DropResult(failures: [DropFailure(name: "Late photo", reason: "Provider failed.")]), kind: .images)
+        #expect(model.dropFailures.count == 2)
+        #expect(model.dropFailureMessage?.contains("Failed photo") == true)
+        #expect(model.dropFailureMessage?.contains("Late photo") == true)
+        #expect(model.dropFailureMessage?.contains("Finder") == true)
+    }
+
+    @Test func droppedReferencesDeduplicateRetainOwnershipThroughReembeddingAndCleanUp() async throws {
+        let model = try await makeModel(), root = try TempDir()
+        var first: DroppedFile? = try DroppedItems.copy(Fixtures.url("harris_2021.jpg"), type: .jpeg, name: nil, root: root.url)
+        let url = try #require(first?.url)
+        model.addDroppedReferencePhotos([try #require(first)])
+        first = nil
+        try await waitUntil("drop processing") { !model.isProcessingReferences }
+        #expect(model.referencePhotos.count == 1)
+        #expect(FileManager.default.fileExists(atPath: url.path))
+        do {
+            let duplicate = try DroppedItems.copy(Fixtures.url("harris_2021.jpg"), type: .jpeg, name: "different name", root: root.url)
+            model.addDroppedReferencePhotos([duplicate, duplicate])
+            #expect(model.referencePhotos.count == 1)
+        }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: root.url.path).count == 1)
+        await model.pipelineChanged()
+        try await waitUntil("drop re-embedding") { !model.isProcessingReferences }
+        #expect(model.referencePhotos.count == 1 && FileManager.default.fileExists(atPath: url.path))
+        model.removeReferencePhoto(try #require(model.referencePhotos.first?.id))
+        try await waitUntil("drop cleanup") { !FileManager.default.fileExists(atPath: url.path) }
+        #expect(try FileManager.default.contentsOfDirectory(atPath: root.url.path).isEmpty)
+    }
+
+    @Test func removingAndRedroppingDuringProcessingDoesNotReviveOldReferences() async throws {
+        let model = try await makeModel(), root = try TempDir()
+        let oldURL: URL
+        do {
+            let file = try DroppedItems.copy(Fixtures.url("apollo11_crew.jpg"), type: .jpeg, name: nil, root: root.url)
+            oldURL = file.url
+            model.addDroppedReferencePhotos([file])
+        }
+        let oldID = try #require(model.referencePhotos.first?.id)
+        #expect(model.isProcessingReferences)
+        model.removeReferencePhoto(oldID)
+        // The detached pipeline owns the copy even after its UI consumer disappears.
+        #expect(FileManager.default.fileExists(atPath: oldURL.path))
+        do {
+            let replacement = try DroppedItems.copy(Fixtures.url("apollo11_crew.jpg"), type: .jpeg, name: nil, root: root.url)
+            model.addDroppedReferencePhotos([replacement])
+        }
+        try await waitUntil("old reader cleanup") { !FileManager.default.fileExists(atPath: oldURL.path) }
+        try await waitUntil("replacement processing") { !model.isProcessingReferences }
+        #expect(model.referencePhotos.count == 1 && model.referencePhotos.first?.id != oldID)
+        #expect(model.referencePhotos.first?.faces.count == 3)
+        model.removeReferencePhoto(try #require(model.referencePhotos.first?.id))
+        try await waitUntil("replacement cleanup") {
+            (try? FileManager.default.contentsOfDirectory(atPath: root.url.path).isEmpty) == true
+        }
+    }
+
     @Test func stopThenRescanNeverMixesResults() async throws {
         let model = try await makeModel()
         try await addReferences(model, ["biden_2013.jpg"])

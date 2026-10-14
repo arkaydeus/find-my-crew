@@ -25,10 +25,11 @@ xcodebuild -project FindMyCrew.xcodeproj -scheme FindMyCrew -configuration Debug
 [tasks.test]
 description = "Run the Swift test suite"
 depends = ["project"]
-run = 'xcodebuild -project FindMyCrew.xcodeproj -scheme FindMyCrew -derivedDataPath "${DERIVED:-build/DerivedData}" test -quiet'
+run = 'xcodebuild -project FindMyCrew.xcodeproj -scheme FindMyCrew -derivedDataPath "${DERIVED:-build/DerivedData}" test'
 
 [tasks."test:py"]
-description = "Run the Python script tests (needs the venv task first)"
+description = "Run the Python script tests"
+depends = ["venv"]
 run = ".venv-models/bin/python scripts/eval/test_testset_task.py"
 
 [tasks.run]

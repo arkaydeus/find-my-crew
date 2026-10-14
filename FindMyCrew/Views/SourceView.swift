@@ -41,9 +41,7 @@ struct SourceView: View {
                 )
             }
         }
-        .onFileDrop { urls in
-            if let dir = urls.first(where: \.hasDirectoryPath) { model.chooseSource(dir) }
-        }
+        .onFileDrop(kind: .folders) { model.receiveDrop($0, kind: .folders) }
     }
 
     @ViewBuilder private var counts: some View {

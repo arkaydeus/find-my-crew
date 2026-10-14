@@ -52,10 +52,11 @@ struct ThumbnailView: View {
     }
 }
 
-/// Drop target accepting file URLs, plus images from apps such as Photos that drag image data or file
-/// promises instead of URLs (those are copied to a temporary folder first).
+/// Drop delivery is asynchronous: accept the operation only when at least one provider matches
+/// the target, then report resolution failures while handing successful files to the consumer.
 struct FileDropModifier: ViewModifier {
-    var onDrop: ([URL]) -> Void
+    var kind: DropKind
+    var onDrop: (DropResult) -> Void
     @State private var targeted = false
 
     func body(content: Content) -> some View {
@@ -68,62 +69,21 @@ struct FileDropModifier: ViewModifier {
                         .allowsHitTesting(false)
                 }
             }
-            .onDrop(of: [.fileURL, .image], isTargeted: $targeted) { providers in
-                Task {
-                    let urls = await DroppedItems.urls(from: providers)
-                    if !urls.isEmpty { onDrop(urls) }
+            .onDrop(of: kind.acceptedTypes, isTargeted: $targeted) { providers in
+                guard providers.contains(where: { provider in
+                    kind.acceptedTypes.contains { provider.hasItemConformingToTypeIdentifier($0.identifier) }
+                }) else { return false }
+                Task { @MainActor in
+                    onDrop(await DroppedItems.resolve(providers, kind: kind))
                 }
                 return true
             }
     }
 }
 
-@MainActor
-enum DroppedItems {
-    static func urls(from providers: [NSItemProvider]) async -> [URL] {
-        var urls: [URL] = []
-        for provider in providers {
-            if let url = await fileURL(from: provider) {
-                urls.append(url)
-            } else if let url = await imageCopy(from: provider) {
-                urls.append(url)
-            }
-        }
-        return urls
-    }
-
-    private static func fileURL(from provider: NSItemProvider) async -> URL? {
-        guard provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) else { return nil }
-        return await withCheckedContinuation { continuation in
-            _ = provider.loadObject(ofClass: URL.self) { @Sendable url, _ in continuation.resume(returning: url) }
-        }
-    }
-
-    /// Copies the dropped image out, since the provided file is deleted once the handler returns.
-    private static func imageCopy(from provider: NSItemProvider) async -> URL? {
-        guard let type = provider.registeredContentTypes.first(where: { $0.conforms(to: .image) }) else { return nil }
-        let suggestedName = provider.suggestedName
-        return await withCheckedContinuation { continuation in
-            _ = provider.loadFileRepresentation(for: type) { @Sendable file, _, _ in
-                continuation.resume(returning: file.flatMap { try? copy($0, type: type, name: suggestedName) })
-            }
-        }
-    }
-
-    nonisolated private static func copy(_ file: URL, type: UTType, name: String?) throws -> URL {
-        let dir = URL.temporaryDirectory.appending(path: "Dropped Photos/\(UUID().uuidString)", directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let base = name ?? file.deletingPathExtension().lastPathComponent
-        let ext = file.pathExtension.isEmpty ? type.preferredFilenameExtension ?? "" : file.pathExtension
-        let destination = dir.appending(path: base).appendingPathExtension(ext)
-        try FileManager.default.copyItem(at: file, to: destination)
-        return destination
-    }
-}
-
 extension View {
-    func onFileDrop(_ action: @escaping ([URL]) -> Void) -> some View {
-        modifier(FileDropModifier(onDrop: action))
+    func onFileDrop(kind: DropKind = .images, _ action: @escaping (DropResult) -> Void) -> some View {
+        modifier(FileDropModifier(kind: kind, onDrop: action))
     }
 }
 

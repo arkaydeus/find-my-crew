@@ -4,6 +4,8 @@ import SwiftUI
 struct FindMyCrewApp: App {
     @State private var model = AppModel()
 
+    init() { DroppedItems.purgeStaleCopies() }
+
     var body: some Scene {
         Window("Find My Crew", id: "main") {
             ContentView()

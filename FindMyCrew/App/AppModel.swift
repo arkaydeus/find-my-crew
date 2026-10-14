@@ -44,6 +44,7 @@ struct ReferencePhoto: Identifiable {
     let id = UUID()
     var url: URL
     var access: SecurityScopedAccess?
+    var droppedFile: DroppedFile?
     var state: State = .loading
     var faces: [ReferenceFace] = []
 }
@@ -66,6 +67,18 @@ final class AppModel {
 
     // ① ② References
     var referencePhotos: [ReferencePhoto] = []
+    // Stored at the window level: a delayed provider failure remains visible after navigation.
+    var dropFailures: [DropFailure] = []
+    var dropFailureMessage: String? { DropResult(failures: dropFailures).failureMessage }
+
+    func receiveDrop(_ result: DropResult, kind: DropKind) {
+        dropFailures.append(contentsOf: result.failures)
+        switch kind {
+        case .images: addDroppedReferencePhotos(result.files)
+        case .folders:
+            if let folder = result.files.first { chooseSource(folder.url, access: folder.access) }
+        }
+    }
 
     // ③ Source
     private(set) var sourceRoot: URL?
@@ -153,7 +166,7 @@ final class AppModel {
         // Re-embed the reference photos with the new pipeline, keeping the user's Yes/No choices.
         let previous = referencePhotos
         referencePhotos = []
-        addReferencePhotos(previous.map(\.url)) { url, faces in
+        addDroppedReferencePhotos(previous.map { $0.droppedFile ?? DroppedFile(url: $0.url, access: $0.access) }) { url, faces in
             let choices = previous.first { $0.url == url }?.faces ?? []
             for i in faces.indices {
                 let box = faces[i].face.normalizedBox
@@ -205,27 +218,33 @@ final class AppModel {
     func addReferencePhotos(
         _ urls: [URL], adjust: (@MainActor (URL, inout [ReferenceFace]) -> Void)? = nil
     ) {
-        let existing = Set(referencePhotos.map(\.url))
-        var seen = Set<URL>()
-        let new = urls.filter { ImageLoader.isSupported($0) && !existing.contains($0) && seen.insert($0).inserted }
+        addDroppedReferencePhotos(urls.map { DroppedFile(url: $0) }, adjust: adjust)
+    }
+
+    func addDroppedReferencePhotos(
+        _ files: [DroppedFile], adjust: (@MainActor (URL, inout [ReferenceFace]) -> Void)? = nil
+    ) {
+        var seenURLs = Set(referencePhotos.map(\.url))
+        var seenContent = Set(referencePhotos.compactMap { $0.droppedFile?.contentID })
+        let new = files.filter { file in
+            guard ImageLoader.isSupported(file.url), seenURLs.insert(file.url).inserted else { return false }
+            return file.contentID.map { seenContent.insert($0).inserted } ?? true
+        }
         guard !new.isEmpty else { return }
-        let accesses = new.map { SecurityScopedAccess($0) }
         guard let pipeline else {
-            if embedder == nil {
-                Task {
-                    defer { withExtendedLifetime(accesses) {} }
-                    await reloadModel()
-                    if self.embedder != nil { addReferencePhotos(new, adjust: adjust) }
-                }
+            Task {
+                await reloadModel()
+                if self.embedder != nil { addDroppedReferencePhotos(new, adjust: adjust) }
             }
             return
         }
-        for (url, access) in zip(new, accesses) {
-            let photo = ReferencePhoto(url: url, access: access)
+        for file in new {
+            let url = file.url
+            let photo = ReferencePhoto(url: url, access: file.access, droppedFile: file)
             referencePhotos.append(photo)
             let id = photo.id
             Task.detached(priority: .userInitiated) {
-                defer { withExtendedLifetime(access) {} }
+                defer { withExtendedLifetime(file) {} }
                 let outcome: Result<[ReferenceFace], Error>
                 do {
                     let (image, faces) = try await pipeline.process(url: url)
@@ -278,10 +297,10 @@ final class AppModel {
 
     // MARK: ③ Source
 
-    func chooseSource(_ url: URL) {
+    func chooseSource(_ url: URL, access suppliedAccess: SecurityScopedAccess? = nil) {
         enumerationTask?.cancel()
         if url != sourceRoot { cancelScan(); resetScan() }
-        let access = SecurityScopedAccess(url)
+        let access = suppliedAccess ?? SecurityScopedAccess(url)
         sourceAccess = access
         sourceRoot = url
         enumeration = nil

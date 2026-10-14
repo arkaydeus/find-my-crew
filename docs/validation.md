@@ -3,9 +3,9 @@
 Run the Swift suite (Core, AppModel, custom-model fixtures and benchmark checks):
 
 ```sh
-make test DERIVED=~/Library/Developer/Xcode/DerivedData/FindMyCrew
-make eval-build DERIVED=~/Library/Developer/Xcode/DerivedData/FindMyCrew
-.venv-models/bin/python scripts/eval/test_make_testset.py
+DERIVED=~/Library/Developer/Xcode/DerivedData/FindMyCrew mise run test
+DERIVED=~/Library/Developer/Xcode/DerivedData/FindMyCrew mise run eval:build
+mise run test:py
 ```
 
 The Python test substitutes tiny local download/build stages and places a failing
@@ -25,7 +25,7 @@ accuracy. Unexpected unreadable inputs fail scenario status.
 
 Headless tests check access acquisition/release and background-task lifetime, but
 cannot prove Finder delivers sandbox grants. Run this check on the signed app
-built by `make build`; keep App Sandbox and user-selected read/write entitlements
+built by `mise run build`; keep App Sandbox and user-selected read/write entitlements
 enabled. Place test files outside the app container. Do not use open panels to
 grant these locations before dropping them.
 

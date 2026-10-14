@@ -74,7 +74,9 @@ struct ContentView: View {
             Spacer()
             primaryAction
         }
-        .padding(12)
+        .padding(.vertical, 12)
+        // Matches the reference cards' inset so Back and Next line up with their edges.
+        .padding(.horizontal, 20)
         .background(.bar)
     }
 

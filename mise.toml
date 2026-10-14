@@ -1,0 +1,90 @@
+# Tool versions and project tasks. `mise install` sets up the toolchain; `mise tasks` lists tasks.
+# Xcode itself (xcodebuild, Swift 6) comes from the system and is not managed here.
+#
+# Build output goes to build/DerivedData. Override it when the repo is on an external drive: test
+# runners launched by Xcode may be denied access to removable volumes, e.g.
+#   DERIVED=~/Library/Developer/Xcode/DerivedData/FindMyCrew mise run test
+
+[tools]
+xcodegen = "2.46.0"
+# Model conversion and eval scripts; scripts/models/requirements.txt is verified against 3.12.
+python = "3.12"
+
+[tasks.project]
+description = "Generate FindMyCrew.xcodeproj from project.yml"
+run = "xcodegen generate"
+
+[tasks.build]
+description = "Build the app (Debug)"
+depends = ["project"]
+run = """
+xcodebuild -project FindMyCrew.xcodeproj -scheme FindMyCrew -configuration Debug \
+  -derivedDataPath "${DERIVED:-build/DerivedData}" build -quiet
+"""
+
+[tasks.test]
+description = "Run the Swift test suite"
+depends = ["project"]
+run = 'xcodebuild -project FindMyCrew.xcodeproj -scheme FindMyCrew -derivedDataPath "${DERIVED:-build/DerivedData}" test -quiet'
+
+[tasks."test:py"]
+description = "Run the Python script tests (needs the venv task first)"
+run = ".venv-models/bin/python scripts/eval/test_testset_task.py"
+
+[tasks.run]
+description = "Build and launch the app"
+depends = ["build"]
+run = 'open "${DERIVED:-build/DerivedData}/Build/Products/Debug/Find My Crew.app"'
+
+[tasks."eval:build"]
+description = "Build the fmc-eval CLI (Release)"
+depends = ["project"]
+run = """
+xcodebuild -project FindMyCrew.xcodeproj -scheme fmc-eval -configuration Release \
+  -derivedDataPath "${DERIVED:-build/DerivedData}" build -quiet
+"""
+
+[tasks."eval:fetch"]
+description = "Download LFW into models-cache/eval (checksum-verified)"
+run = "scripts/eval/fetch_lfw.sh"
+
+[tasks.eval]
+description = "Verification accuracy on LFW (run eval:fetch first)"
+depends = ["eval:build"]
+run = """
+"${DERIVED:-build/DerivedData}/Build/Products/Release/fmc-eval" models-cache/eval/lfw \
+  --model FindMyCrew/Resources/Models/SFace.mlpackage
+"""
+
+[tasks.testset]
+description = "Build the end-to-end test library from openly licensed photos (~2 GB, ~30 min)"
+depends = ["venv"]
+run = [
+  ".venv-models/bin/python scripts/eval/fetch_testset.py",
+  ".venv-models/bin/python scripts/eval/build_scenario.py",
+]
+
+[tasks."eval:scenario"]
+description = "Scan, review and export the test library, scored against its labels (run testset first)"
+depends = ["eval:build"]
+run = """
+SCENARIO=models-cache/testset/scenario
+rm -rf models-cache/testset/export
+"${DERIVED:-build/DerivedData}/Build/Products/Release/fmc-eval" scan \
+  --model FindMyCrew/Resources/Models/SFace.mlpackage \
+  --references "$SCENARIO/references" --source "$SCENARIO/library" --labels "$SCENARIO/labels.tsv" \
+  --report "$SCENARIO/results.tsv" --export models-cache/testset/export
+"""
+
+[tasks.venv]
+description = "Create .venv-models and install the pinned model-conversion tooling"
+run = "scripts/models/setup_venv.sh"
+
+[tasks.models]
+description = "Regenerate the bundled Core ML model"
+depends = ["venv"]
+run = ".venv-models/bin/python scripts/models/convert_sface.py"
+
+[tasks.clean]
+description = "Remove build output"
+run = "rm -rf build"

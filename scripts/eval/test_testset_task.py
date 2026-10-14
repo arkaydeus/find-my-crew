@@ -13,9 +13,9 @@ import unittest
 class TestsetInterpreterTests(unittest.TestCase):
     def test_both_stages_use_prepared_python(self):
         repo = Path(__file__).resolve().parents[2]
-        with tempfile.TemporaryDirectory(prefix="fmc-testset-make-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="fmc-testset-mise-") as tmp:
             root = Path(tmp)
-            shutil.copyfile(repo / "Makefile", root / "Makefile")
+            shutil.copyfile(repo / "mise.toml", root / "mise.toml")
             (root / "scripts/models").mkdir(parents=True)
             (root / "scripts/eval").mkdir(parents=True)
             (root / ".venv-models/bin").mkdir(parents=True)
@@ -33,8 +33,10 @@ class TestsetInterpreterTests(unittest.TestCase):
             other_python = trap / "python3"
             other_python.write_text("#!/bin/sh\necho 'wrong system python3 selected' >&2\nexit 97\n")
             other_python.chmod(0o755)
-            env = dict(os.environ, PATH=f"{trap}:{os.environ['PATH']}")
-            result = subprocess.run(["make", "--no-print-directory", "testset"], cwd=root, env=env,
+            # Trust the copied config, skip tool installs (no downloads) and keep task output unprefixed.
+            env = dict(os.environ, PATH=f"{trap}:{os.environ['PATH']}", MISE_TRUSTED_CONFIG_PATHS=str(root),
+                       MISE_TASK_RUN_AUTO_INSTALL="0", MISE_TASK_OUTPUT="interleave")
+            result = subprocess.run(["mise", "run", "testset"], cwd=root, env=env,
                                     check=True, text=True, capture_output=True)
             calls = [json.loads(line) for line in result.stdout.splitlines() if line.startswith("[")]
             self.assertEqual([Path(call[0]).stem for call in calls], ["fetch_testset", "build_scenario"])

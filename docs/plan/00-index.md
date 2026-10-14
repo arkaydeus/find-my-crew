@@ -17,17 +17,17 @@ Source of truth for requirements: [`../PRD.md`](../PRD.md).
 
 ### Verification (2026‑10‑13, Apple M5 Pro, macOS 27)
 
-- `make build`: zero warnings (Swift 6, strict concurrency).
-- `make test`: 55 tests pass. Coverage:
+- `mise run build`: zero warnings (Swift 6, strict concurrency).
+- `mise run test`: 55 tests pass. Coverage:
   - detection, embedding and matching on public‑domain fixtures;
   - the small‑face landmark regression;
   - a 1,000‑image scan with < 300 MB memory growth (measured +56 MB);
   - cancel in < 1 s;
   - export collisions with originals untouched;
   - the `AppModel` wizard flow end to end (references → folder → scan → review → export, stop/rescan, pause, model fallback).
-- `make models`: parity check passes (Core ML vs ONNX Runtime worst cosine 0.99991).
-- `make eval` (LFW, 6,000‑pair protocol): TAR@FAR=1 % **99.40 %**, best‑accuracy threshold 0.345 vs shipped 0.363, no‑face rate 0 %, 217 images/s.
-- `make scenario-eval` (1,337‑image test library, 3 people × 5 hand‑picked references, labels corrected by visual audit):
+- `mise run models`: parity check passes (Core ML vs ONNX Runtime worst cosine 0.99991).
+- `mise run eval` (LFW, 6,000‑pair protocol): TAR@FAR=1 % **99.40 %**, best‑accuracy threshold 0.345 vs shipped 0.363, no‑face rate 0 %, 217 images/s.
+- `mise run eval:scenario` (1,337‑image test library, 3 people × 5 hand‑picked references, labels corrected by visual audit):
   - precision **93.9 %**, recall **93.9 %**;
   - false matches on 1.2 % of non‑target photos;
   - every format and variant decoded, 3/3 corrupt files skipped, hidden/package files never scanned, 16/16 sidecars exported, export verified byte‑for‑byte.
@@ -41,7 +41,7 @@ Source of truth for requirements: [`../PRD.md`](../PRD.md).
 
 ```
 project.yml                     XcodeGen spec (generates FindMyCrew.xcodeproj)
-Makefile                        project / build / test / run / models
+mise.toml                       tools + tasks: project / build / test / run / models
 FindMyCrew/
   App/                          App entry, AppModel (wizard state)
   Core/                         UI‑free logic (pipeline, scan, matching, export)
@@ -58,4 +58,4 @@ docs/
 
 - Swift 6 language mode, strict concurrency. UI state is `@MainActor @Observable`; heavy work runs in actors / detached tasks.
 - `Core/` must not import SwiftUI so it can be unit‑tested and reused by the eval CLI.
-- Every feature doc lists **acceptance criteria**; a feature is done when they pass (`make test` + manual check where noted).
+- Every feature doc lists **acceptance criteria**; a feature is done when they pass (`mise run test` + manual check where noted).

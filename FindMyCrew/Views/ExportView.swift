@@ -63,7 +63,8 @@ struct ExportView: View {
                         Button {
                             model.startExport()
                         } label: {
-                            Label("Copy Photos", systemImage: "square.and.arrow.down.on.square")
+                            // At the default scale this tall symbol pushes the whole label ~2pt below centre.
+                            Label("Copy Photos", systemImage: "square.and.arrow.down.on.square").imageScale(.small)
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)

@@ -57,6 +57,7 @@ targets:
         type: folder
         buildPhase: resources
       - path: FindMyCrew/Core
+      - path: FindMyCrewCLI
       # The wizard state machine (no SwiftUI), so the whole flow can be tested headlessly.
       - path: FindMyCrew/App
         excludes:
@@ -64,9 +65,16 @@ targets:
       - path: FindMyCrew/Resources/Models/SFace.mlpackage
     settings:
       base:
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) FMC_TESTING"
         PRODUCT_BUNDLE_IDENTIFIER: com.findmycrew.tests
         GENERATE_INFOPLIST_FILE: YES
         COREML_CODEGEN_LANGUAGE: None
+    dependencies:
+      - package: swift-argument-parser
+        product: ArgumentParser
+      - package: libwebp
+      - target: fmc
+        link: false
 
   fmc-eval:
     type: tool

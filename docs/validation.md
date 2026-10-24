@@ -135,3 +135,26 @@ substitute for it.
   import or error alert. The native automation connection subsequently closed.
   This proves neither sandbox drag grants nor Photos interoperability. The real Finder/Photos sequence above remains unverified;
   automated provider and ownership tests do not replace that runtime check.
+
+## CLI review regressions
+
+The hostless test target also compiles the CLI helpers and writers, and builds `fmc` for subprocess tests.
+Run them with the normal `mise run test`; to isolate them, use the suite filters
+`CLIHelpersTests`, `ExtractTests`, `ImageWriterTests`, and `CLICommandTests` on `FindMyCrewTests`.
+
+- Extraction tests hold concurrent writes until all colliding jobs have claimed a path. They verify distinct
+  crops from two roots and a same-stem pair, existing files and numbered copies, overwrite semantics, mirrored
+  paths, partial write failures and summary counts. Subprocess tests check overlapping inputs, RAW/JPEG
+  preference, extraction-to-filter reference count, no-face photos and failure exits.
+- Filter subprocess tests cover sorted reference indexes, largest-face selection, reference-folder exclusion,
+  model-adjusted thresholds, TSV output, dry runs, copies, sidecars and repeat runs. Corrupt references and
+  sources must exit 1 in dry-run, no-match and export modes while preserving valid matches. Valid no-match runs
+  exit 0. Output inside references is rejected before model loading, including new paths under symlinks.
+- Writer tests round-trip all five formats and check type, dimensions, upright pixels, unavailable destination
+  errors and lossy quality. WebP decoding checks straight RGB and alpha for opaque and translucent regions and
+  exercises an encoder failure. Helper tests cover path expansion, enumeration, input aliases, bounded
+  concurrency, model lookup through a symlinked executable, and valid/invalid custom model contract fixtures.
+
+Validation on 2026-10-25: all 117 Swift tests passed, including these regressions and the existing 1,000-image
+scan check. Release builds of both `fmc` and `fmc-eval` passed. Test diagnostics and `.xcresult` bundles remain
+under `build/DerivedData/Logs/Test`.

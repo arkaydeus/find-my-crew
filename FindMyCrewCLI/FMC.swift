@@ -5,6 +5,7 @@ import Foundation
 // fmc — Find My Crew from the command line. Compiles the app's Core sources (same detection, embedding,
 // matching and copy code as the app); see `fmc help <subcommand>`.
 
+#if !FMC_TESTING
 @main
 struct FMC: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -13,6 +14,8 @@ struct FMC: AsyncParsableCommand {
         subcommands: [Extract.self, Filter.self]
     )
 }
+
+#endif
 
 /// Options shared by the subcommands that run face detection.
 struct DetectionOptions: ParsableArguments {
@@ -78,19 +81,39 @@ enum CLI {
     static func loadEmbedder(path: String?) async throws -> FaceEmbedder {
         if let path {
             let model = url(path)
-            return try await FaceEmbedder.load(modelAt: model, displayName: model.lastPathComponent)
+            let embedder = try await FaceEmbedder.load(modelAt: model, displayName: model.lastPathComponent)
+            try embedder.selfTest()
+            return embedder
         }
-        let name = "\(ModelStore.builtInName).mlmodelc"
-        let executableDir = (Bundle.main.executableURL ?? URL(filePath: CommandLine.arguments[0]))
-            .resolvingSymlinksInPath().deletingLastPathComponent()
-        let candidates = [
-            executableDir.appending(path: name),
-            URL(filePath: "/Applications/Find My Crew.app/Contents/Resources").appending(path: name),
-        ]
+        let candidates = modelCandidates(executable: Bundle.main.executableURL ?? URL(filePath: CommandLine.arguments[0]))
         guard let found = candidates.first(where: { FileManager.default.fileExists(atPath: $0.path) }) else {
             throw ValidationError("Built-in face model not found (looked in \(candidates.map(\.path).joined(separator: ", "))). Pass --model.")
         }
         return try FaceEmbedder(compiledModelURL: found, displayName: ModelStore.builtInDisplayName)
+    }
+
+    static func modelCandidates(executable: URL) -> [URL] {
+        let name = "\(ModelStore.builtInName).mlmodelc"
+        return [
+            executable.resolvingSymlinksInPath().deletingLastPathComponent().appending(path: name),
+            URL(filePath: "/Applications/Find My Crew.app/Contents/Resources").appending(path: name),
+        ]
+    }
+
+    /// Keep the first spelling/relative path of each physical input. A RAW plus a JPEG in the same
+    /// directory represents one photo; prefer the JPEG for extraction, regardless of argument order.
+    static func extractionItems(_ items: [ScanItem]) -> [ScanItem] {
+        var seen = Set<URL>()
+        let unique = items.filter { seen.insert($0.url.standardizedFileURL.resolvingSymlinksInPath()).inserted }
+        func stem(_ item: ScanItem) -> String {
+            let resolved = item.url.standardizedFileURL.resolvingSymlinksInPath()
+            return resolved.deletingLastPathComponent().appendingPathComponent(
+                resolved.deletingPathExtension().lastPathComponent.lowercased()).path
+        }
+        let jpegStems = Set(unique.filter { ["jpg", "jpeg"].contains($0.url.pathExtension.lowercased()) }.map(stem))
+        return unique.filter {
+            !ImageLoader.rawExtensions.contains($0.url.pathExtension.lowercased()) || !jpegStems.contains(stem($0))
+        }
     }
 
     /// Runs `body` over `items` with at most `limit` in flight, handing each result to `onResult` as it completes.

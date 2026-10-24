@@ -25,8 +25,8 @@ enum ExportPlanner {
         Set(["xmp", "aae", "jpg", "jpeg", "heic", "heif", "png", "tif", "tiff"]).union(ImageLoader.rawExtensions)
 
     static func validate(source: URL, destination: URL) throws {
-        let s = source.standardizedFileURL.resolvingSymlinksInPath()
-        let d = destination.standardizedFileURL.resolvingSymlinksInPath()
+        let s = FolderEnumerator.resolved(source)
+        let d = FolderEnumerator.resolved(destination)
         if s.pathComponents == d.pathComponents { throw ExportError.destinationIsSource }
         if FolderEnumerator.isSameOrInside(d, s) { throw ExportError.destinationInsideSource }
     }

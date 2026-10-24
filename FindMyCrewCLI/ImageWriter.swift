@@ -52,8 +52,7 @@ enum ImageWriter {
     private static func encodeWebP(_ image: CGImage, quality: Int, url: URL) throws -> Data {
         let w = image.width, h = image.height, stride = w * 4
         var pixels = [UInt8](repeating: 0, count: stride * h)
-        // Straight (non-premultiplied) RGBA is what libwebp expects; CG only renders premultiplied, which is
-        // identical for opaque photos.
+        // Core Graphics renders premultiplied RGBA; libwebp expects straight RGBA.
         let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
             guard let ctx = CGContext(
                 data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: stride,
@@ -63,6 +62,13 @@ enum ImageWriter {
             return true
         }
         guard drawn else { throw ImageWriteError.encodeFailed(url) }
+        for i in Swift.stride(from: 0, to: pixels.count, by: 4) {
+            let alpha = Int(pixels[i + 3])
+            guard alpha > 0, alpha < 255 else { continue }
+            for channel in 0..<3 {
+                pixels[i + channel] = UInt8(min(255, (Int(pixels[i + channel]) * 255 + alpha / 2) / alpha))
+            }
+        }
         var output: UnsafeMutablePointer<UInt8>?
         let size = WebPEncodeRGBA(pixels, Int32(w), Int32(h), Int32(stride), Float(quality), &output)
         defer { WebPFree(output) }

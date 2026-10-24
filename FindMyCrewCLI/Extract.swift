@@ -56,29 +56,60 @@ struct Extract: AsyncParsableCommand {
             if CLI.isDirectory(url) { try ExportPlanner.validate(source: url, destination: outputURL) }
             items += try CLI.images(at: url)
         }
+        items = CLI.extractionItems(items)
         guard !items.isEmpty else { throw ValidationError("No supported images found.") }
         try FileManager.default.createDirectory(at: outputURL, withIntermediateDirectories: true)
 
         let job = Job(output: outputURL, format: format, quality: quality, size: size, padding: CGFloat(padding),
-                      overwrite: overwrite, options: detection.pipelineOptions)
-        var done = 0, faces = 0, withoutFaces = 0, failed = 0
+                      destinations: Destinations(overwrite: overwrite), options: detection.pipelineOptions)
+        var summary = Summary()
         await CLI.forEach(items, { await job.extract($0) }) { outcome in
-            done += 1
-            faces += outcome.written.count
+            summary.add(outcome)
             if let error = outcome.error {
-                failed += 1
                 CLI.endProgress()
                 CLI.log("\(outcome.item.relativePath): \(error)")
-            } else if outcome.written.isEmpty {
-                withoutFaces += 1
             }
-            CLI.progress("Extracting \(done)/\(items.count) photos, \(faces) faces")
+            CLI.progress("Extracting \(summary.done)/\(items.count) photos, \(summary.faces) faces")
         }
         CLI.endProgress()
-        CLI.log("\(faces) faces from \(items.count - failed - withoutFaces) photos → \(outputURL.path)"
-                + (withoutFaces > 0 ? "; \(withoutFaces) photos had no faces" : "")
-                + (failed > 0 ? "; \(failed) failed" : ""))
-        if failed > 0 { throw ExitCode.failure }
+        CLI.log("\(summary.faces) faces from \(summary.photos) photos → \(outputURL.path)"
+                + (summary.withoutFaces > 0 ? "; \(summary.withoutFaces) photos had no faces" : "")
+                + (summary.failed > 0 ? "; \(summary.failed) failed" : ""))
+        if summary.failed > 0 { throw ExitCode.failure }
+    }
+
+    struct Summary {
+        var done = 0, faces = 0, photos = 0, withoutFaces = 0, failed = 0
+
+        mutating func add(_ outcome: Outcome) {
+            done += 1
+            faces += outcome.written.count
+            if !outcome.written.isEmpty { photos += 1 }
+            if outcome.error != nil { failed += 1 }
+            else if outcome.written.isEmpty { withoutFaces += 1 }
+        }
+    }
+
+    /// One allocator for the entire run, including failed writes. Even --overwrite may claim a path
+    /// only once, so jobs never replace another job's crop. Suffixes preserve existing numbered copies.
+    actor Destinations {
+        let overwrite: Bool
+        private var claimed = Set<String>()
+
+        init(overwrite: Bool) { self.overwrite = overwrite }
+
+        func claim(_ proposed: URL) -> URL {
+            var candidate = proposed
+            var suffix = 0
+            while claimed.contains(FolderEnumerator.resolved(candidate).path.lowercased())
+                    || ((!overwrite || suffix > 0) && FileManager.default.fileExists(atPath: candidate.path)) {
+                suffix += 1
+                candidate = proposed.deletingLastPathComponent().appendingPathComponent(
+                    "\(proposed.deletingPathExtension().lastPathComponent) (\(suffix)).\(proposed.pathExtension)")
+            }
+            claimed.insert(FolderEnumerator.resolved(candidate).path.lowercased())
+            return candidate
+        }
     }
 
     struct Job: Sendable {
@@ -87,24 +118,31 @@ struct Extract: AsyncParsableCommand {
         var quality: Int
         var size: Int
         var padding: CGFloat
-        var overwrite: Bool
+        var destinations: Destinations
         var options: PipelineOptions
 
-        func extract(_ item: ScanItem) async -> Outcome {
+        func extract(
+            _ item: ScanItem,
+            detect: @Sendable (CGImage) async throws -> [CGRect] = { image in
+                try await FaceDetector().detect(in: image).map(\.boundingBox)
+            },
+            write: @Sendable (CGImage, URL, ImageFormat, Int) async throws -> Void = {
+                try ImageWriter.write($0, to: $1, format: $2, quality: $3)
+            }
+        ) async -> Outcome {
             var outcome = Outcome(item: item)
             do {
                 let image = try autoreleasepool { try ImageLoader.load(item.url, maxPixel: options.workingResolution) }
                 let imageSize = CGSize(width: image.width, height: image.height)
-                let boxes = try await FaceDetector().detect(in: image).map(\.boundingBox)
+                let boxes = try await detect(image)
                     .filter { max($0.width, $0.height) >= options.minimumFaceSize }
                 for (n, i) in FaceCrops.readingOrder(boxes).enumerated() {
                     let rect = FaceCrops.cropRect(around: boxes[i], padding: padding, in: imageSize)
                     guard let crop = ImageUtils.crop(image, to: rect, maxSide: size) else { continue }
                     let path = FaceCrops.outputPath(for: item.relativePath, face: n + 1, fileExtension: format.fileExtension)
-                    var dest = output.appending(path: path, directoryHint: .notDirectory)
+                    let dest = await destinations.claim(output.appending(path: path, directoryHint: .notDirectory))
                     try FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
-                    if !overwrite, FileManager.default.fileExists(atPath: dest.path) { dest = ExportService.uniqueURL(for: dest) }
-                    try ImageWriter.write(crop, to: dest, format: format, quality: quality)
+                    try await write(crop, dest, format, quality)
                     outcome.written.append(dest)
                 }
             } catch {

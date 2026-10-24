@@ -57,10 +57,22 @@ enum FolderEnumerator {
         return url.lastPathComponent
     }
 
+    /// Foundation may leave symlinked parents unresolved when the leaf doesn't exist yet.
+    /// Resolve the nearest existing ancestor, then restore the missing components for output checks.
+    static func resolved(_ url: URL) -> URL {
+        var ancestor = url.standardizedFileURL
+        var missing: [String] = []
+        while !FileManager.default.fileExists(atPath: ancestor.path), ancestor.pathComponents.count > 1 {
+            missing.append(ancestor.lastPathComponent)
+            ancestor.deleteLastPathComponent()
+        }
+        return missing.reversed().reduce(ancestor.resolvingSymlinksInPath()) { $0.appendingPathComponent($1) }
+    }
+
     /// True when `url` is `ancestor` itself or lies inside it.
     static func isSameOrInside(_ url: URL, _ ancestor: URL) -> Bool {
-        let a = ancestor.standardizedFileURL.resolvingSymlinksInPath().pathComponents
-        let p = url.standardizedFileURL.resolvingSymlinksInPath().pathComponents
+        let a = resolved(ancestor).pathComponents
+        let p = resolved(url).pathComponents
         return p.count >= a.count && Array(p.prefix(a.count)) == a
     }
 }

@@ -42,6 +42,22 @@ struct ExportPlannerTests {
         #expect(ExportError.destinationInsideSource.errorDescription?.isEmpty == false)
     }
 
+    @Test func rejectsNewDestinationsUnderSymlinkedParents() throws {
+        let dir = try TempDir()
+        let src = try dir.directory("src")
+        let alias = dir.url.appending(path: "alias")
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: src)
+        let nested = alias.appending(path: "new/deeper/output")
+        #expect(FolderEnumerator.isSameOrInside(nested, src))
+        #expect(throws: ExportError.destinationInsideSource) {
+            try ExportPlanner.validate(source: src, destination: nested)
+        }
+        #expect(throws: ExportError.destinationIsSource) {
+            try ExportPlanner.validate(source: src, destination: alias)
+        }
+        try ExportPlanner.validate(source: src, destination: dir.url.appending(path: "sibling/new/output"))
+    }
+
     @Test func includesSidecarsSharingTheBaseName() throws {
         let dir = try TempDir()
         try dir.file("src/2024/IMG_1.JPG")

@@ -55,25 +55,35 @@ struct Filter: AsyncParsableCommand {
         guard CLI.isDirectory(sourceURL) else { throw ValidationError("--source must be a folder: \(sourceURL.path)") }
         try ExportPlanner.validate(source: sourceURL, destination: outputURL)
 
+        if CLI.isDirectory(facesURL) { try ExportPlanner.validate(source: facesURL, destination: outputURL) }
+
         let embedder = try await CLI.loadEmbedder(path: model)
         let pipeline = FacePipeline(embedder: embedder, options: detection.pipelineOptions)
 
         // ① ② Reference faces.
         let referenceItems = try CLI.images(at: facesURL)
+        var failedReferences = 0
         var references: [(file: String, embedding: [Float])] = []
         await CLI.forEach(referenceItems, { item in
             do { return ReferencePhoto(item: item, faces: try await pipeline.process(url: item.url).faces) }
             catch { return ReferencePhoto(item: item, error: error.localizedDescription) }
         }) { photo in
             let path = photo.item.relativePath
-            if let error = photo.error { return CLI.log("\(path): \(error)") }
+            if let error = photo.error {
+                failedReferences += 1
+                return CLI.log("\(path): \(error)")
+            }
             guard let face = photo.faces.max(by: { $0.pixelSize < $1.pixelSize }) else {
                 return CLI.log("\(path): no face found, skipped")
             }
             if photo.faces.count > 1 { CLI.log("\(path): \(photo.faces.count) faces, using the largest") }
             references.append((path, face.embedding))
         }
-        guard !references.isEmpty else { throw ValidationError("No faces found in \(facesURL.path).") }
+        guard !references.isEmpty else {
+            CLI.log("No faces found in \(facesURL.path); \(failedReferences) reference files failed.")
+            if failedReferences > 0 { throw ExitCode.failure }
+            throw ValidationError("No faces found in \(facesURL.path).")
+        }
         references.sort { $0.file.localizedStandardCompare($1.file) == .orderedAscending }
         let referenceSet = ReferenceSet(embeddings: references.map(\.embedding))
         let threshold = threshold
@@ -107,10 +117,14 @@ struct Filter: AsyncParsableCommand {
         }
         let unreadable = results.filter { $0.error != nil }.count
         CLI.log(String(format: "%d of %d photos match in %.1fs", selected.count, results.count, Date().timeIntervalSince(start))
+                + (failedReferences > 0 ? "; \(failedReferences) reference files failed" : "")
                 + (unreadable > 0 ? "; \(unreadable) unreadable" : "")
                 + (nearMisses.isEmpty ? "" : String(format: "; %d more score within %.2f of the threshold (lower --threshold to include them)",
                                                     nearMisses.count, Matcher.nearMissMargin)))
-        guard !dryRun, !selected.isEmpty else { return }
+        guard !dryRun, !selected.isEmpty else {
+            if failedReferences + unreadable > 0 { throw ExitCode.failure }
+            return
+        }
 
         // ⑥ Export.
         let operations = try ExportPlanner.plan(items: selected.map(\.item), source: sourceURL, destination: outputURL,
@@ -124,6 +138,6 @@ struct Filter: AsyncParsableCommand {
                 + (summary.skippedIdentical > 0 ? "; \(summary.skippedIdentical) already there" : "")
                 + (summary.renamed > 0 ? "; \(summary.renamed) renamed to avoid overwriting" : "")
                 + (summary.failures.isEmpty ? "" : "; \(summary.failures.count) failed"))
-        if !summary.failures.isEmpty { throw ExitCode.failure }
+        if failedReferences + unreadable > 0 || !summary.failures.isEmpty { throw ExitCode.failure }
     }
 }

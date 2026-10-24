@@ -9,7 +9,7 @@ onnx==1.23.2
 onnx2torch==1.5.15
 onnxruntime==1.31.0
 numpy==2.5.4
-pillow==12.3.0
+pillow==13.0.0
 protobuf==7.36.2
 # Optional but recommended: lets convert_sface.py verify Core ML against the real
 # cv2.FaceRecognizerSF.feature() reference implementation.

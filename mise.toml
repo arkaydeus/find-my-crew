@@ -37,6 +37,19 @@ description = "Build and launch the app"
 depends = ["build"]
 run = 'open "${DERIVED:-build/DerivedData}/Build/Products/Debug/Find My Crew.app"'
 
+[tasks."cli:build"]
+description = "Build the fmc command-line tool (Release)"
+depends = ["project"]
+run = """
+xcodebuild -project FindMyCrew.xcodeproj -scheme fmc -configuration Release \
+  -derivedDataPath "${DERIVED:-build/DerivedData}" build -quiet
+"""
+
+[tasks.fmc]
+description = "Build and run fmc; pass its arguments after --, e.g. mise run fmc -- extract ~/Pictures -o faces"
+depends = ["cli:build"]
+run = '"${DERIVED:-build/DerivedData}/Build/Products/Release/fmc"'
+
 [tasks."eval:build"]
 description = "Build the fmc-eval CLI (Release)"
 depends = ["project"]

@@ -57,6 +57,7 @@ targets:
         type: folder
         buildPhase: resources
       - path: FindMyCrew/Core
+      - path: FindMyCrewCLI
       # The wizard state machine (no SwiftUI), so the whole flow can be tested headlessly.
       - path: FindMyCrew/App
         excludes:
@@ -64,9 +65,16 @@ targets:
       - path: FindMyCrew/Resources/Models/SFace.mlpackage
     settings:
       base:
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) FMC_TESTING"
         PRODUCT_BUNDLE_IDENTIFIER: com.findmycrew.tests
         GENERATE_INFOPLIST_FILE: YES
         COREML_CODEGEN_LANGUAGE: None
+    dependencies:
+      - package: swift-argument-parser
+        product: ArgumentParser
+      - package: libwebp
+      - target: fmc
+        link: false
 
   fmc-eval:
     type: tool
@@ -78,6 +86,43 @@ targets:
       base:
         PRODUCT_NAME: fmc-eval
         PRODUCT_BUNDLE_IDENTIFIER: com.findmycrew.eval
+
+  # The command-line tool: the app's Core with a CLI front end instead of SwiftUI.
+  fmc:
+    type: tool
+    platform: macOS
+    sources:
+      - FindMyCrewCLI
+      - path: FindMyCrew/Core
+    dependencies:
+      - package: swift-argument-parser
+        product: ArgumentParser
+      - package: libwebp
+    settings:
+      base:
+        PRODUCT_NAME: fmc
+        PRODUCT_BUNDLE_IDENTIFIER: com.findmycrew.cli
+        # coremlcompiler replaces SFace.mlmodelc wholesale, which the script sandbox denies.
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+    # A tool has no Resources folder, so the compiled model sits next to the binary, where fmc looks for it.
+    postBuildScripts:
+      - name: Compile SFace model
+        script: xcrun coremlcompiler compile "$SRCROOT/FindMyCrew/Resources/Models/SFace.mlpackage" "$BUILT_PRODUCTS_DIR" >/dev/null
+        inputFiles:
+          - $(SRCROOT)/FindMyCrew/Resources/Models/SFace.mlpackage/Manifest.json
+          - $(SRCROOT)/FindMyCrew/Resources/Models/SFace.mlpackage/Data/com.apple.CoreML/model.mlmodel
+          - $(SRCROOT)/FindMyCrew/Resources/Models/SFace.mlpackage/Data/com.apple.CoreML/weights/weight.bin
+        outputFiles:
+          - $(BUILT_PRODUCTS_DIR)/SFace.mlmodelc
+
+packages:
+  swift-argument-parser:
+    url: https://github.com/apple/swift-argument-parser
+    from: 1.8.0
+  # libwebp built from source: ImageIO reads WebP but can't write it.
+  libwebp:
+    url: https://github.com/SDWebImage/libwebp-Xcode
+    from: 1.6.0
 
 schemes:
   FindMyCrew:
@@ -94,5 +139,11 @@ schemes:
     build:
       targets:
         fmc-eval: all
+    run:
+      config: Release
+  fmc:
+    build:
+      targets:
+        fmc: all
     run:
       config: Release

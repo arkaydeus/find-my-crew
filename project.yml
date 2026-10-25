@@ -15,6 +15,9 @@ settings:
     DEAD_CODE_STRIPPING: YES
     CODE_SIGN_IDENTITY: "-"
     CODE_SIGN_STYLE: Manual
+    # One version for the app and fmc; scripts/release/build.sh overrides both from the release tag.
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
 
 targets:
   FindMyCrew:
@@ -35,12 +38,19 @@ targets:
         INFOPLIST_KEY_NSHumanReadableCopyright: "Find My Crew. Face recognition model: SFace (OpenCV Zoo, Apache-2.0)."
         CODE_SIGN_ENTITLEMENTS: FindMyCrew/FindMyCrew.entitlements
         ENABLE_HARDENED_RUNTIME: YES
-        MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         COREML_CODEGEN_LANGUAGE: None
         COMBINE_HIDPI_IMAGES: YES
+    # fmc ships inside the app (Contents/Helpers) and finds the app's compiled model in Contents/Resources;
+    # the installer links it onto PATH.
+    dependencies:
+      - target: fmc
+        embed: true
+        codeSign: true
+        copy:
+          destination: productsDirectory
+          subpath: $(CONTENTS_FOLDER_PATH)/Helpers
 
   # Hostless: compiles Core + the model directly, so tests run outside the app sandbox
   # (and don't depend on SwiftUI). Same approach as fmc-eval.
@@ -102,6 +112,10 @@ targets:
       base:
         PRODUCT_NAME: fmc
         PRODUCT_BUNDLE_IDENTIFIER: com.findmycrew.cli
+        ENABLE_HARDENED_RUNTIME: YES
+        # Embedded Info.plist, so `fmc --version` reports MARKETING_VERSION.
+        GENERATE_INFOPLIST_FILE: YES
+        CREATE_INFOPLIST_SECTION_IN_BINARY: YES
         # coremlcompiler replaces SFace.mlmodelc wholesale, which the script sandbox denies.
         ENABLE_USER_SCRIPT_SANDBOXING: NO
     # A tool has no Resources folder, so the compiled model sits next to the binary, where fmc looks for it.

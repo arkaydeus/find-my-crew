@@ -1,18 +1,18 @@
 # fmc — command-line tool
 
 `fmc` is Find My Crew without the window: the same `FindMyCrew/Core` code (Vision detection, the SFace model,
-matching thresholds, copying) behind two subcommands.
+matching thresholds, copying) behind two subcommands. It ships inside the app, and installing the app puts it
+on your `PATH` (see [install.md](install.md)).
+
+For development:
 
 ```sh
 mise run cli:build                  # → build/DerivedData/Build/Products/Release/fmc (+ SFace.mlmodelc beside it)
 mise run fmc -- --help              # build and run in one go
 ```
 
-To put it on your `PATH`, symlink the binary (it finds the model through the link):
-
-```sh
-ln -s "$PWD/build/DerivedData/Build/Products/Release/fmc" ~/.local/bin/fmc
-```
+`fmc` looks for the model next to its binary (following symlinks), then in the app bundle it ships in, then in
+`/Applications/Find My Crew.app`.
 
 ## Extract faces
 

@@ -37,6 +37,22 @@ description = "Build and launch the app"
 depends = ["build"]
 run = 'open "${DERIVED:-build/DerivedData}/Build/Products/Debug/Find My Crew.app"'
 
+[tasks.install]
+description = "Build a release from this checkout and install the app + fmc; installer options after --, e.g. -- --bin-dir ~/bin"
+run = 'SIGNING=adhoc scripts/release/build.sh && scripts/install.sh --from "${OUT_DIR:-build/release}/FindMyCrew.zip"'
+
+[tasks.uninstall]
+description = "Remove the installed app and the fmc link"
+run = "scripts/install.sh --uninstall"
+
+[tasks."release:build"]
+description = "Build the release zip (universal app with fmc inside; signed and notarized if the Developer ID certificate is here) into build/release; optional version after --"
+run = "scripts/release/build.sh"
+
+[tasks.release]
+description = "Test, build and publish GitHub release v<version> from this Mac, e.g. mise run release -- 1.2.0"
+run = "scripts/release/publish.sh"
+
 [tasks."cli:build"]
 description = "Build the fmc command-line tool (Release)"
 depends = ["project"]

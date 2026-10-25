@@ -31,13 +31,17 @@ COMMIT="$(git rev-parse HEAD)"
 
 if [[ -z "${SKIP_TESTS:-}" ]]; then
   echo "Running tests…"
+  mise run test:scripts
   mise run test
 fi
 # Never publish an ad-hoc build: scripts/install.sh only accepts downloads signed by the team.
 SIGNING=developer-id OUT_DIR="$OUT_DIR" "$SCRIPT_DIR/build.sh" "$VERSION"
 
 gh release create "$TAG" "$OUT_DIR/$ASSET" "$OUT_DIR/$ASSET.sha256" \
-  --target "$COMMIT" --title "Find My Crew $VERSION" --generate-notes
+  --target "$COMMIT" --title "Find My Crew $VERSION" --generate-notes --draft \
+  || fail "release creation or asset upload failed; inspect the draft $TAG before retrying."
+gh release edit "$TAG" --draft=false \
+  || fail "couldn't publish $TAG; the release and uploaded assets remain a draft."
 git fetch --quiet --tags origin
 echo "Published $TAG. Install it with:"
 echo "  curl -fsSL https://raw.githubusercontent.com/arkaydeus/find-my-crew/main/scripts/install.sh | bash"

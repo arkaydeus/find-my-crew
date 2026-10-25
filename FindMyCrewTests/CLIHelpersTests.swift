@@ -51,7 +51,7 @@ struct CLIHelpersTests {
         try dir.directory("bin")
         try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: binary)
         let contents = binary.deletingLastPathComponent().deletingLastPathComponent()
-        #expect(CLI.modelCandidates(executable: alias).contains(contents.appending(path: "Resources/SFace.mlmodelc")))
+        #expect(CLI.modelCandidates(executable: alias) == [contents.appending(path: "Resources/SFace.mlmodelc")])
     }
 
     @Test(arguments: [0, 1, 3]) func boundedConcurrencyAndEveryResult(_ limit: Int) async {

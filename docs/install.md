@@ -23,13 +23,22 @@ curl -fsSL https://raw.githubusercontent.com/arkaydeus/find-my-crew/main/scripts
 | --- | --- |
 | `--version V` | a specific release instead of the latest |
 | `--from PATH` | a local `FindMyCrew.zip` or `Find My Crew.app` instead of downloading |
-| `--app-dir DIR` | where the app goes |
-| `--bin-dir DIR` | where the `fmc` link goes (default `~/.local/bin`) |
+| `--app-dir DIR` | where the app goes; relative paths are resolved from the current directory |
+| `--bin-dir DIR` | where the `fmc` link goes (default `~/.local/bin`); relative paths are supported |
 | `--no-cli` | app only |
 | `--uninstall` | remove the app and the `fmc` link; settings in `~/Library/Containers/com.findmycrew.app` are kept |
 
+The installer remembers the app and bin directories in `~/Library/Application Support/Find My Crew/installer`,
+so subsequent updates and uninstall find custom installations, including `--no-cli` installs. Explicit directory
+options override the saved paths. For a custom installation made with an older installer, repeat those options
+once to record its location.
+
 The installer won't replace something at the destination that isn't Find My Crew, or an `fmc` there that's a
-plain file rather than its own link. If `~/.local/bin` isn't on your `PATH` it says so.
+plain file or a link into another installation. If `~/.local/bin` isn't on your `PATH` it says so. Install and
+uninstall use locks; an overlapping invocation fails with the lock's location and can be retried. A replacement
+keeps the previous app until installation succeeds and restores it on failure. If restoring also fails, the
+error gives the preserved backup's location. After an uncatchable termination (such as `kill -9`), remove the
+reported lock only after confirming no installer is running.
 
 ## Downloading by hand
 
@@ -59,9 +68,11 @@ mise run release -- 1.2.0
 
 Releases are built on your Mac; there's no CI. `scripts/release/publish.sh` first checks that `gh` is logged in
 and that you're on a clean `main` in sync with `origin`. Then it runs the tests (skip them with
-`SKIP_TESTS=1`) and builds with `scripts/release/build.sh 1.2.0`, signed and notarized. Finally `gh release create` makes the tag
-`v1.2.0` on that commit and publishes the release with generated notes and two assets: `FindMyCrew.zip` and
-`FindMyCrew.zip.sha256`. Asset names don't change between releases, so `releases/latest/download/FindMyCrew.zip`
+`SKIP_TESTS=1`) and builds with `scripts/release/build.sh 1.2.0`, signed and notarized. Finally `gh release create`
+prepares a draft for `v1.2.0` at that commit with generated notes and two assets: `FindMyCrew.zip` and
+`FindMyCrew.zip.sha256`. It publishes with `gh release edit` only after both uploads succeed; failures leave
+a draft to inspect if one was created.
+Asset names don't change between releases, so `releases/latest/download/FindMyCrew.zip`
 always points at the newest one.
 
 The release version comes from the command. `MARKETING_VERSION` in `project.yml` is only for development builds, and the build
@@ -93,3 +104,11 @@ You need two things on the Mac you release from:
 `scripts/install.sh`, which refuses downloads signed by anyone else. If notarization fails, the error gives the
 submission ID; `xcrun notarytool log <id> --keychain-profile orkestrator-notary` names the files Apple
 rejected.
+
+### Lifecycle regression tests
+
+`mise run test:scripts` exercises install, update, uninstall, replacement rollback, concurrent invocations,
+download verification, Developer ID assertions, notarization/stapling failures, and release publishing gates
+with isolated command stubs. These tests never contact Apple or GitHub. `mise run test` also runs a relocated
+packaged CLI against its bundled model and checks its embedded version. Actual Developer ID signing and Apple
+acceptance are still enforced by every `SIGNING=developer-id` build.

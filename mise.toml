@@ -32,6 +32,10 @@ description = "Run the Python script tests"
 depends = ["venv"]
 run = ".venv-models/bin/python scripts/eval/test_testset_task.py"
 
+[tasks."test:scripts"]
+description = "Test installer and release lifecycle with isolated command stubs (no publishing or notarization)"
+run = "python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v"
+
 [tasks.run]
 description = "Build and launch the app"
 depends = ["build"]

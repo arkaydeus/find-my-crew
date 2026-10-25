@@ -97,6 +97,11 @@ enum CLI {
     static func modelCandidates(executable: URL) -> [URL] {
         let name = "\(ModelStore.builtInName).mlmodelc"
         let directory = executable.resolvingSymlinksInPath().deletingLastPathComponent()
+        // A packaged helper must use its own app's resources. Falling back to a separately installed
+        // app would hide an incomplete release and could silently load a different model version.
+        if directory.lastPathComponent == "Helpers", directory.deletingLastPathComponent().lastPathComponent == "Contents" {
+            return [directory.deletingLastPathComponent().appending(path: "Resources/\(name)")]
+        }
         return [
             directory.appending(path: name),
             directory.deletingLastPathComponent().appending(path: "Resources/\(name)"),

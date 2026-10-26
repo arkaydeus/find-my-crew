@@ -45,6 +45,7 @@
 		5FD0D1A98148711438C47BE3 /* SFace.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 7339DE7C42CB0734D6CE2743 /* SFace.mlpackage */; };
 		6088D833C0EF242D1A2DCC33 /* Filter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9423416458922BA18E09125 /* Filter.swift */; };
 		644984B1E888E6B31EC58DCF /* ScenarioValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96E923EB6BD9B7E7855555A1 /* ScenarioValidation.swift */; };
+		6466FDF7D785ECFC614CE2EB /* fmc in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = 0B4157973EBACB169DF936F7 /* fmc */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		64C3A6F4332778801714EA51 /* FaceEmbedder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 727CE4B75AE77D0BE22B0FF5 /* FaceEmbedder.swift */; };
 		65EE9676177B6B55A38762FF /* Matcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 318DEE698B488FF1C66FC2B2 /* Matcher.swift */; };
 		67A6EBC66245C870468A7C99 /* ModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DAFFBE58951747372D5D8F8 /* ModelStore.swift */; };
@@ -118,6 +119,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		2629DE4E39C0A394CA4C8289 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8147EDFE24EAFD6268C9CEE4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 190CB0B08A88CC18AF647565;
+			remoteInfo = fmc;
+		};
 		56492BDC704B44AD29FC5C24 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 8147EDFE24EAFD6268C9CEE4 /* Project object */;
@@ -126,6 +134,20 @@
 			remoteInfo = fmc;
 		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A29DC19004EAC7628B1158CB /* Embed Dependencies */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Helpers";
+			dstSubfolderSpec = 16;
+			files = (
+				6466FDF7D785ECFC614CE2EB /* fmc in Embed Dependencies */,
+			);
+			name = "Embed Dependencies";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		0B4157973EBACB169DF936F7 /* fmc */ = {isa = PBXFileReference; includeInIndex = 0; path = fmc; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -421,10 +443,12 @@
 			buildPhases = (
 				6496BA97938B17FFD2627514 /* Sources */,
 				ACF24DEEDF52F8AF6D6BED12 /* Resources */,
+				A29DC19004EAC7628B1158CB /* Embed Dependencies */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				5DF504C39EF8DED1496C3EEF /* PBXTargetDependency */,
 			);
 			name = FindMyCrew;
 			packageProductDependencies = (
@@ -665,6 +689,11 @@
 			target = 190CB0B08A88CC18AF647565 /* fmc */;
 			targetProxy = 56492BDC704B44AD29FC5C24 /* PBXContainerItemProxy */;
 		};
+		5DF504C39EF8DED1496C3EEF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 190CB0B08A88CC18AF647565 /* fmc */;
+			targetProxy = 2629DE4E39C0A394CA4C8289 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -704,6 +733,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
@@ -718,6 +748,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -751,7 +782,6 @@
 				CODE_SIGN_ENTITLEMENTS = FindMyCrew/FindMyCrew.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				COREML_CODEGEN_LANGUAGE = None;
-				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Find My Crew";
@@ -761,7 +791,6 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.findmycrew.app;
 				PRODUCT_MODULE_NAME = FindMyCrew;
 				PRODUCT_NAME = "Find My Crew";
@@ -805,6 +834,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -825,6 +855,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -855,7 +886,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
+				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -870,7 +904,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				COMBINE_HIDPI_IMAGES = YES;
+				CREATE_INFOPLIST_SECTION_IN_BINARY = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -925,7 +962,6 @@
 				CODE_SIGN_ENTITLEMENTS = FindMyCrew/FindMyCrew.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				COREML_CODEGEN_LANGUAGE = None;
-				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Find My Crew";
@@ -935,7 +971,6 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.findmycrew.app;
 				PRODUCT_MODULE_NAME = FindMyCrew;
 				PRODUCT_NAME = "Find My Crew";

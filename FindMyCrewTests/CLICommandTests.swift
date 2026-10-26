@@ -174,6 +174,43 @@ struct CLICommandTests {
         #expect(!result.stderr.contains("Built-in face model not found"))
     }
 
+    @Test func relocatedPackagedHelperUsesItsOwnModelAndEmbeddedVersion() throws {
+        let dir = try TempDir()
+        let products = Bundle(for: CLIBundleToken.self).bundleURL.deletingLastPathComponent()
+        let original = products.appending(path: "Find My Crew.app")
+        let app = dir.url.appending(path: "relocated/Find My Crew.app")
+        try dir.directory("relocated")
+        try FileManager.default.copyItem(at: original, to: app)
+        let plist = app.appending(path: "Contents/Info.plist")
+        var info = try #require(PropertyListSerialization.propertyList(from: Data(contentsOf: plist), format: nil) as? [String: Any])
+        let expectedVersion = try #require(info["CFBundleShortVersionString"] as? String)
+        #expect(!expectedVersion.isEmpty)
+        // The helper's version comes from its embedded plist, even if its containing app differs.
+        info["CFBundleShortVersionString"] = "99.98.97"
+        try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0).write(to: plist)
+        let executable = app.appending(path: "Contents/Helpers/fmc")
+        let alias = dir.url.appending(path: "bin/fmc")
+        try dir.directory("bin")
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: executable)
+        let version = try runCLI(["--version"], executable: alias)
+        #expect(version.status == 0, "\(version.stderr)")
+        #expect(version.stdout == expectedVersion + "\n")
+        #expect(version.stderr.isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: executable.deletingLastPathComponent().appending(path: "SFace.mlmodelc").path))
+        let source = try dir.directory("source")
+        try copy("biden_2021.jpg", to: dir, as: "source/photo.jpg")
+        let args = ["filter", "--faces", Fixtures.url("biden_2013.jpg").path, "--source", source.path,
+                    "--output", dir.url.appending(path: "out").path, "--dry-run"]
+        let result = try runCLI(args, executable: alias)
+        #expect(result.status == 0, "\(result.stderr)")
+        #expect(result.stdout.contains("\tphoto.jpg\tbiden_2013.jpg"))
+        // Removing this bundle's model must fail, even on a Mac with /Applications installed.
+        try FileManager.default.removeItem(at: app.appending(path: "Contents/Resources/SFace.mlmodelc"))
+        let missing = try runCLI(args, executable: alias)
+        #expect(missing.status != 0)
+        #expect(missing.stderr.contains("Built-in face model not found"))
+    }
+
     @Test func largestReferenceFaceAndValidNoMatch() throws {
         let dir = try TempDir()
         let source = try dir.directory("source")

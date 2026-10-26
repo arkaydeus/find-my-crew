@@ -11,6 +11,7 @@ struct FMC: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "fmc",
         abstract: "Find photos of your crew from the command line.",
+        version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "",
         subcommands: [Extract.self, Filter.self]
     )
 }
@@ -77,7 +78,8 @@ enum CLI {
     }
 
     /// The face model: `--model` if given, else the built-in SFace model next to this executable (where the build
-    /// puts it) or inside an installed copy of the app.
+    /// puts it), in the app bundle this copy ships in (`Contents/Helpers/fmc` → `Contents/Resources`), or inside an
+    /// installed copy of the app.
     static func loadEmbedder(path: String?) async throws -> FaceEmbedder {
         if let path {
             let model = url(path)
@@ -94,8 +96,15 @@ enum CLI {
 
     static func modelCandidates(executable: URL) -> [URL] {
         let name = "\(ModelStore.builtInName).mlmodelc"
+        let directory = executable.resolvingSymlinksInPath().deletingLastPathComponent()
+        // A packaged helper must use its own app's resources. Falling back to a separately installed
+        // app would hide an incomplete release and could silently load a different model version.
+        if directory.lastPathComponent == "Helpers", directory.deletingLastPathComponent().lastPathComponent == "Contents" {
+            return [directory.deletingLastPathComponent().appending(path: "Resources/\(name)")]
+        }
         return [
-            executable.resolvingSymlinksInPath().deletingLastPathComponent().appending(path: name),
+            directory.appending(path: name),
+            directory.deletingLastPathComponent().appending(path: "Resources/\(name)"),
             URL(filePath: "/Applications/Find My Crew.app/Contents/Resources").appending(path: name),
         ]
     }
